@@ -13,6 +13,8 @@ const meetingBtn = document.getElementById('meetingBtn');
 const exportMenu = document.getElementById('exportMenu');
 const formatIndicator = document.getElementById('formatIndicator');
 const engineBtns = document.querySelectorAll('.engine-btn');
+const showWidgetBtn = document.getElementById('showWidgetBtn');
+const showWidgetBar = document.getElementById('showWidgetBar');
 
 let engine = null;
 let isRecording = false;
@@ -281,6 +283,16 @@ function setupEventListeners() {
     sendToBackground({ type: 'OPEN_OPTIONS' });
   });
 
+  // Show widget button (appears when widget was hidden)
+  if (showWidgetBtn) {
+    showWidgetBtn.addEventListener('click', async () => {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab && tab.id) {
+        chrome.tabs.sendMessage(tab.id, { type: 'SHOW_WIDGET' }).catch(() => {});
+        if (showWidgetBar) showWidgetBar.style.display = 'none';
+      }
+    });
+  }
 
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === 'STATE_UPDATE') {

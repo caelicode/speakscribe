@@ -35,17 +35,22 @@ const SpeakScribeLicense = (() => {
   const STORAGE_KEYS = {
     LICENSE: 'speakscribe_license',
     LICENSE_KEY: 'speakscribe_license_key',
+    INSTANCE_ID: 'speakscribe_instance_id',
     ACTIVATED_AT: 'speakscribe_activated_at',
     LAST_VALIDATED: 'speakscribe_last_validated',
     TRIAL_START: 'speakscribe_trial_start',
-    INSTALL_DATE: 'speakscribe_install_date'
+    INSTALL_DATE: 'speakscribe_install_date',
+    CUSTOMER_EMAIL: 'speakscribe_customer_email',
+    PRODUCT_NAME: 'speakscribe_product_name'
   };
 
   const TRIAL_DAYS = 7;
   const VALIDATION_INTERVAL_MS = 24 * 60 * 60 * 1000;
-  const VALIDATION_API = 'https://api.speakscribe.com/v1/license/validate';
-  const ACTIVATION_API = 'https://api.speakscribe.com/v1/license/activate';
-  const DEACTIVATION_API = 'https://api.speakscribe.com/v1/license/deactivate';
+  // LemonSqueezy License API (no API key required, only the license key)
+  const LS_API_BASE = 'https://api.lemonsqueezy.com/v1/licenses';
+  const ACTIVATION_API = LS_API_BASE + '/activate';
+  const VALIDATION_API = LS_API_BASE + '/validate';
+  const DEACTIVATION_API = LS_API_BASE + '/deactivate';
 
   function getStorageData(keys) {
     return new Promise((resolve) => {
@@ -185,48 +190,51 @@ const SpeakScribeLicense = (() => {
     const key = licenseKey.trim();
 
     try {
+      const body = new URLSearchParams();
+      body.append('license_key', key);
+      body.append('instance_name', 'SpeakScribe Chrome Extension');
+
       const response = await fetch(ACTIVATION_API, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          license_key: key,
-          instance_name: 'chrome-extension'
-        })
+        headers: { 'Accept': 'application/json' },
+        body: body
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        return {
-          success: false,
-          error: errorData.message || 'Activation failed. Please check your license key.'
-        };
-      }
 
       const result = await response.json();
 
-      if (result.valid || result.activated) {
-        await setStorageData({
+      if (result.activated) {
+        const storagePayload = {
           [STORAGE_KEYS.LICENSE]: TIERS.PRO,
           [STORAGE_KEYS.LICENSE_KEY]: key,
           [STORAGE_KEYS.ACTIVATED_AT]: Date.now(),
           [STORAGE_KEYS.LAST_VALIDATED]: Date.now()
-        });
+        };
 
+        // Store instance ID for future deactivation
+        if (result.instance && result.instance.id) {
+          storagePayload[STORAGE_KEYS.INSTANCE_ID] = result.instance.id;
+        }
+
+        // Store customer info from meta
+        if (result.meta) {
+          if (result.meta.customer_email) {
+            storagePayload[STORAGE_KEYS.CUSTOMER_EMAIL] = result.meta.customer_email;
+          }
+          if (result.meta.product_name) {
+            storagePayload[STORAGE_KEYS.PRODUCT_NAME] = result.meta.product_name;
+          }
+        }
+
+        await setStorageData(storagePayload);
         return { success: true, tier: TIERS.PRO };
       }
 
-      return { success: false, error: result.message || 'License key not valid' };
+      // LemonSqueezy returns error string when activation fails
+      return {
+        success: false,
+        error: result.error || 'Activation failed. Please check your license key.'
+      };
     } catch (err) {
-      if (key.startsWith('SS-PRO-') && key.length >= 20) {
-        await setStorageData({
-          [STORAGE_KEYS.LICENSE]: TIERS.PRO,
-          [STORAGE_KEYS.LICENSE_KEY]: key,
-          [STORAGE_KEYS.ACTIVATED_AT]: Date.now(),
-          [STORAGE_KEYS.LAST_VALIDATED]: Date.now()
-        });
-        return { success: true, tier: TIERS.PRO, offline: true };
-      }
-
       return {
         success: false,
         error: 'Could not connect to license server. Check your internet connection.'
@@ -235,18 +243,20 @@ const SpeakScribeLicense = (() => {
   }
 
   async function deactivateLicense() {
-    const data = await getStorageData([STORAGE_KEYS.LICENSE_KEY]);
+    const data = await getStorageData([STORAGE_KEYS.LICENSE_KEY, STORAGE_KEYS.INSTANCE_ID]);
     const key = data[STORAGE_KEYS.LICENSE_KEY];
+    const instanceId = data[STORAGE_KEYS.INSTANCE_ID];
 
-    if (key) {
+    if (key && instanceId) {
       try {
+        const body = new URLSearchParams();
+        body.append('license_key', key);
+        body.append('instance_id', instanceId);
+
         await fetch(DEACTIVATION_API, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            license_key: key,
-            instance_name: 'chrome-extension'
-          })
+          headers: { 'Accept': 'application/json' },
+          body: body
         });
       } catch (err) {
         console.warn('[SpeakScribe License] Deactivation API call failed:', err.message);
@@ -256,8 +266,11 @@ const SpeakScribeLicense = (() => {
     await removeStorageData([
       STORAGE_KEYS.LICENSE,
       STORAGE_KEYS.LICENSE_KEY,
+      STORAGE_KEYS.INSTANCE_ID,
       STORAGE_KEYS.ACTIVATED_AT,
-      STORAGE_KEYS.LAST_VALIDATED
+      STORAGE_KEYS.LAST_VALIDATED,
+      STORAGE_KEYS.CUSTOMER_EMAIL,
+      STORAGE_KEYS.PRODUCT_NAME
     ]);
 
     return { success: true };
@@ -267,6 +280,7 @@ const SpeakScribeLicense = (() => {
     const data = await getStorageData([
       STORAGE_KEYS.LICENSE,
       STORAGE_KEYS.LICENSE_KEY,
+      STORAGE_KEYS.INSTANCE_ID,
       STORAGE_KEYS.LAST_VALIDATED
     ]);
 
@@ -281,18 +295,18 @@ const SpeakScribeLicense = (() => {
     }
 
     try {
+      const body = new URLSearchParams();
+      body.append('license_key', data[STORAGE_KEYS.LICENSE_KEY]);
+      // Include instance_id if available for instance-level validation
+      if (data[STORAGE_KEYS.INSTANCE_ID]) {
+        body.append('instance_id', data[STORAGE_KEYS.INSTANCE_ID]);
+      }
+
       const response = await fetch(VALIDATION_API, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          license_key: data[STORAGE_KEYS.LICENSE_KEY],
-          instance_name: 'chrome-extension'
-        })
+        headers: { 'Accept': 'application/json' },
+        body: body
       });
-
-      if (!response.ok) {
-        return { valid: true, cached: true, apiError: true };
-      }
 
       const result = await response.json();
 
@@ -301,16 +315,26 @@ const SpeakScribeLicense = (() => {
         return { valid: true, cached: false };
       }
 
+      // License no longer valid (expired, disabled, refunded, etc.)
+      const status = result.license_key ? result.license_key.status : 'unknown';
       await removeStorageData([
         STORAGE_KEYS.LICENSE,
         STORAGE_KEYS.LICENSE_KEY,
+        STORAGE_KEYS.INSTANCE_ID,
         STORAGE_KEYS.ACTIVATED_AT,
-        STORAGE_KEYS.LAST_VALIDATED
+        STORAGE_KEYS.LAST_VALIDATED,
+        STORAGE_KEYS.CUSTOMER_EMAIL,
+        STORAGE_KEYS.PRODUCT_NAME
       ]);
 
-      return { valid: false, reason: 'License is no longer valid' };
+      return { valid: false, reason: 'License is no longer valid (status: ' + status + ')' };
     } catch (err) {
-      return { valid: true, cached: true, offline: true };
+      // Network error: be lenient, allow cached validation for up to 7 days
+      const gracePeriod = VALIDATION_INTERVAL_MS * 7;
+      if ((Date.now() - lastValidated) < gracePeriod) {
+        return { valid: true, cached: true, offline: true };
+      }
+      return { valid: false, reason: 'License validation failed (offline too long)' };
     }
   }
 
@@ -318,10 +342,13 @@ const SpeakScribeLicense = (() => {
     const data = await getStorageData([
       STORAGE_KEYS.LICENSE,
       STORAGE_KEYS.LICENSE_KEY,
+      STORAGE_KEYS.INSTANCE_ID,
       STORAGE_KEYS.ACTIVATED_AT,
       STORAGE_KEYS.LAST_VALIDATED,
       STORAGE_KEYS.TRIAL_START,
-      STORAGE_KEYS.INSTALL_DATE
+      STORAGE_KEYS.INSTALL_DATE,
+      STORAGE_KEYS.CUSTOMER_EMAIL,
+      STORAGE_KEYS.PRODUCT_NAME
     ]);
 
     const tier = await getCurrentTier();
@@ -335,6 +362,8 @@ const SpeakScribeLicense = (() => {
       tier,
       isPro: tier === TIERS.PRO,
       licenseKey: maskedKey,
+      customerEmail: data[STORAGE_KEYS.CUSTOMER_EMAIL] || null,
+      productName: data[STORAGE_KEYS.PRODUCT_NAME] || null,
       activatedAt: data[STORAGE_KEYS.ACTIVATED_AT]
         ? new Date(data[STORAGE_KEYS.ACTIVATED_AT]).toISOString()
         : null,

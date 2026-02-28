@@ -809,7 +809,19 @@
       chrome.runtime.sendMessage({ type: 'OPEN_FLOATING' }).catch(() => {});
     });
 
-    actionsRow.append(copyBtn, clearBtn, overlayBtn);
+    const hideBtn = makeActionBtn('icons/ui/delete-24.png', 'Hide SpeakScribe', () => {
+      if (isRecording) {
+        if (!confirm('Recording is active. Hide SpeakScribe anyway?')) return;
+      }
+      widget.style.display = 'none';
+      // Show again via keyboard shortcut or popup
+      chrome.runtime.sendMessage({ type: 'WIDGET_HIDDEN' }).catch(() => {});
+    });
+    hideBtn.className = 'ss-action-btn ss-hide-btn';
+    hideBtn.innerHTML = '\u2715';
+    hideBtn.title = 'Hide SpeakScribe widget';
+
+    actionsRow.append(copyBtn, clearBtn, overlayBtn, hideBtn);
 
     commandPalette = document.createElement('div');
     commandPalette.id = 'speakscribe-cmd-palette';
@@ -1206,6 +1218,12 @@
           fullTranscript += (fullTranscript ? ' ' : '') + message.text;
           updateBubble(fullTranscript, '');
           broadcast(message.text, true, ts);
+        }
+        sendResponse({ received: true });
+        break;
+      case 'SHOW_WIDGET':
+        if (widget) {
+          widget.style.display = '';
         }
         sendResponse({ received: true });
         break;
