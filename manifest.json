@@ -1,0 +1,87 @@
+{
+  "manifest_version": 3,
+  "name": "SpeakScribe - Live Speech to Text",
+  "version": "2.1.0",
+  "description": "Real-time speech-to-text with voice commands, offline Whisper AI, meeting transcription, direct text injection, smart punctuation, and screen-share safe overlay.",
+  "permissions": [
+    "storage",
+    "commands",
+    "downloads",
+    "tabCapture",
+    "offscreen",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "js/background.js"
+  },
+  "action": {
+    "default_popup": "pages/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_page": "pages/options.html",
+  "commands": {
+    "toggle-transcription": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+T",
+        "mac": "Command+Shift+T"
+      },
+      "description": "Toggle transcription on/off"
+    },
+    "toggle-overlay": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+O",
+        "mac": "Command+Shift+O"
+      },
+      "description": "Toggle floating overlay visibility"
+    },
+    "toggle-meeting": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+M",
+        "mac": "Command+Shift+M"
+      },
+      "description": "Toggle meeting transcription mode"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "js/license.js",
+        "js/content.js"
+      ],
+      "css": [
+        "css/content.css"
+      ]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "pages/floating.html",
+        "pages/offscreen.html",
+        "pages/upgrade.html",
+        "css/*",
+        "js/*",
+        "icons/*",
+        "models/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}

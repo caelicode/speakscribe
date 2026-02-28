@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeakScribe Pro</title>
+    <link rel="stylesheet" href="../css/upgrade.css">
+</head>
+<body>
+    <div class="upgrade-container">
+        <header class="upgrade-header">
+            <div class="logo-row">
+                <span class="logo-icon">&#127908;</span>
+                <h1>SpeakScribe <span class="pro-badge">PRO</span></h1>
+            </div>
+            <p class="tagline">Unlock the full power of voice</p>
+        </header>
+
+        <div id="licenseStatus" class="license-status"></div>
+
+        <section class="plans-section">
+            <div class="plan-card">
+                <div class="plan-header free-header">
+                    <h2>Free</h2>
+                    <div class="plan-price">$0</div>
+                    <div class="plan-period">forever</div>
+                </div>
+                <ul class="plan-features">
+                    <li class="included">Basic dictation (Web Speech)</li>
+                    <li class="included">English (US) only</li>
+                    <li class="included">Smart punctuation</li>
+                    <li class="included">Auto-capitalize</li>
+                    <li class="included">Built-in voice commands</li>
+                    <li class="included">Copy transcript</li>
+                    <li class="included">Export as TXT</li>
+                    <li class="excluded">Additional languages</li>
+                    <li class="excluded">Whisper AI (offline)</li>
+                    <li class="excluded">Meeting transcription</li>
+                    <li class="excluded">Custom voice commands</li>
+                    <li class="excluded">Per-site settings</li>
+                    <li class="excluded">Custom vocabulary</li>
+                    <li class="excluded">Export SRT/MD/JSON</li>
+                    <li class="excluded">Floating overlay</li>
+                    <li class="excluded">Continuous listening</li>
+                    <li class="excluded">Timestamps</li>
+                </ul>
+                <div class="plan-action">
+                    <span class="current-plan-label" id="freeLabel">Current Plan</span>
+                </div>
+            </div>
+
+            <div class="plan-card featured">
+                <div class="plan-ribbon">Best Value</div>
+                <div class="plan-header pro-header">
+                    <h2>Pro</h2>
+                    <div class="plan-price">$29.99</div>
+                    <div class="plan-period">per year</div>
+                    <div class="plan-monthly">or $3.49/month</div>
+                </div>
+                <ul class="plan-features">
+                    <li class="included">Everything in Free, plus:</li>
+                    <li class="included">30+ languages</li>
+                    <li class="included">Whisper AI engine (offline)</li>
+                    <li class="included">Meeting transcription mode</li>
+                    <li class="included">Custom voice commands</li>
+                    <li class="included">Per-site settings</li>
+                    <li class="included">Custom vocabulary</li>
+                    <li class="included">All export formats</li>
+                    <li class="included">Floating overlay</li>
+                    <li class="included">Continuous listening</li>
+                    <li class="included">Timestamps</li>
+                    <li class="included">Priority support</li>
+                </ul>
+                <div class="plan-action">
+                    <button id="upgradeYearlyBtn" class="upgrade-btn">Upgrade to Pro</button>
+                </div>
+            </div>
+
+            <div class="plan-card">
+                <div class="plan-header lifetime-header">
+                    <h2>Lifetime</h2>
+                    <div class="plan-price">$79.99</div>
+                    <div class="plan-period">one-time</div>
+                </div>
+                <ul class="plan-features">
+                    <li class="included">Everything in Pro</li>
+                    <li class="included">Pay once, use forever</li>
+                    <li class="included">All future updates included</li>
+                    <li class="included">Priority support forever</li>
+                </ul>
+                <div class="plan-action">
+                    <button id="upgradeLifetimeBtn" class="upgrade-btn lifetime-btn">Get Lifetime Access</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="trial-section" id="trialSection">
+            <div class="trial-card">
+                <h3>Not sure yet? Try Pro free for 7 days</h3>
+                <p>No credit card required. Full access to all Pro features.</p>
+                <button id="startTrialBtn" class="trial-btn">Start Free Trial</button>
+            </div>
+        </section>
+
+        <section class="activate-section">
+            <h3>Already have a license key?</h3>
+            <div class="activate-row">
+                <input type="text" id="licenseKeyInput" placeholder="SS-PRO-XXXX-XXXX-XXXX" class="license-input">
+                <button id="activateBtn" class="activate-btn">Activate</button>
+            </div>
+            <div id="activateStatus" class="activate-status"></div>
+        </section>
+
+        <section class="deactivate-section" id="deactivateSection" style="display:none;">
+            <button id="deactivateBtn" class="deactivate-btn">Deactivate License</button>
+        </section>
+
+        <footer class="upgrade-footer">
+            <p>Questions? Contact <a href="mailto:support@speakscribe.com">support@speakscribe.com</a></p>
+        </footer>
+    </div>
+
+    <script src="../js/license.js"></script>
+    <script src="../js/upgrade.js"></script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'js/**'
+      - 'css/**'
+      - 'manifest.json'
+      - '*.html'
+      - 'icons/**'
+      - 'images/**'
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Force version bump type (leave empty for auto-detect)'
+        required: false
+        type: choice
+        options:
+          - ''
+          - 'patch'
+          - 'minor'
+          - 'major'
+
+jobs:
+  release:
+    name: Version Bump and Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Detect version bump from commits
+        id: bump
+        run: |
+          set -euo pipefail
+
+          BUMP_ARG=""
+          if [ -n "${{ github.event.inputs.bump_type }}" ]; then
+            BUMP_ARG="--bump ${{ github.event.inputs.bump_type }}"
+          fi
+
+          python3 scripts/bump-version.py ${BUMP_ARG}
+
+      - name: Check if version changed
+        id: check
+        run: |
+          set -euo pipefail
+          if git diff --quiet manifest.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No version change detected. Skipping release."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            NEW_VERSION=$(python3 -c "import json; print(json.load(open('manifest.json'))['version'])")
+            echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+            echo "Version bumped to ${NEW_VERSION}"
+          fi
+
+      - name: Commit version bump
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.check.outputs.version }}"
+          git add manifest.json CHANGELOG.md
+          git commit -m "chore(release): v${VERSION}
+
+          Automated release via semantic versioning.
+          Bumped manifest.json and updated CHANGELOG.md."
+
+      - name: Create git tag
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.check.outputs.version }}"
+          git tag -a "v${VERSION}" -m "Release v${VERSION}"
+          echo "Created tag v${VERSION}"
+
+      - name: Push commit and tag
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git push origin main --follow-tags
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.check.outputs.version }}"
+
+          NOTES=$(python3 -c "
+          with open('CHANGELOG.md', 'r') as f:
+              content = f.read()
+          import re
+          sections = re.split(r'^## ', content, flags=re.MULTILINE)
+          if len(sections) > 1:
+              latest = sections[1]
+              end = latest.find('\n## ')
+              if end > 0:
+                  latest = latest[:end]
+              print('## ' + latest.strip())
+          else:
+              print('Release v${VERSION}')
+          ")
+
+          gh release create "v${VERSION}" \
+            --title "SpeakScribe v${VERSION}" \
+            --notes "${NOTES}" \
+            --latest

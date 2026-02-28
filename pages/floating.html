@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpeakScribe - Live Transcript</title>
+  <link rel="stylesheet" href="../css/floating.css">
+</head>
+<body>
+  
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <div class="titlebar-dot" id="statusDot"></div>
+      <span class="titlebar-title">SpeakScribe Live</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" id="opacityBtn" title="Toggle opacity">&#128065;</button>
+      <button class="titlebar-btn" id="pinBtn" title="Always on top">&#128204;</button>
+      <button class="titlebar-btn" id="minimizeBtn" title="Minimize">&#8722;</button>
+    </div>
+  </div>
+
+  
+  <div class="transcript-area" id="transcriptArea">
+    <div class="empty-state" id="emptyState">
+      <div class="icon">&#127908;</div>
+      <div>Start speaking to see live transcription</div>
+      <div style="font-size: 11px; margin-top: 4px;">This window is invisible when sharing a specific tab or window</div>
+    </div>
+  </div>
+
+  
+  <div class="bottom-bar">
+    <div class="word-count" id="wordCount">0 words</div>
+    <div class="bottom-actions">
+      <button class="bottom-btn" id="copyAllBtn">Copy All</button>
+      <button class="bottom-btn" id="clearAllBtn">Clear</button>
+    </div>
+  </div>
+
+  <script src="../js/floating.js"></script>
+</body>
+</html>

@@ -1,0 +1,451 @@
+
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 340px;
+  min-height: 420px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0f0f1a;
+  color: #e0e0e0;
+  overflow-x: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.settings-btn {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.settings-btn:hover {
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.engine-selector {
+  display: flex;
+  padding: 12px 20px;
+  gap: 8px;
+}
+
+.engine-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #888;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.engine-btn:hover {
+  border-color: rgba(102, 126, 234, 0.3);
+  color: #bbb;
+}
+
+.engine-btn.active {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.15);
+  color: #667eea;
+}
+
+.engine-btn .engine-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.engine-btn .engine-desc {
+  display: block;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.language-select {
+  width: 100%;
+  padding: 6px 12px;
+  margin: 0 20px 8px 20px;
+  width: calc(100% - 40px);
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.language-select:hover {
+  border-color: rgba(102, 126, 234, 0.3);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.language-select:focus {
+  outline: none;
+  border-color: #667eea;
+  background-color: rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.language-select option {
+  background-color: #1a1a2e;
+  color: #e0e0e0;
+}
+
+.main-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 20px;
+}
+
+.record-btn {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #667eea;
+  font-size: 32px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.record-btn:hover {
+  border-color: #667eea;
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(102, 126, 234, 0.2);
+}
+
+.record-btn.recording {
+  border-color: #ff4444;
+  animation: recording-pulse 2s ease-in-out infinite;
+}
+
+.record-btn.recording .mic-icon { display: none; }
+.record-btn.recording .stop-icon { display: block; }
+.record-btn:not(.recording) .mic-icon { display: block; }
+.record-btn:not(.recording) .stop-icon { display: none; }
+
+@keyframes recording-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.3); }
+  50% { box-shadow: 0 0 0 15px rgba(255, 68, 68, 0); }
+}
+
+.status-text {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #888;
+}
+
+.status-text.active {
+  color: #ff4444;
+}
+
+.quick-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 20px 16px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #aaa;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.action-btn:hover {
+  border-color: rgba(102, 126, 234, 0.3);
+  color: #ddd;
+  background: rgba(102, 126, 234, 0.08);
+}
+
+.action-btn .icon {
+  font-size: 14px;
+}
+
+.export-format {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #667eea;
+  background-color: rgba(102, 126, 234, 0.15);
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-left: 6px;
+  letter-spacing: 0.5px;
+}
+
+.meeting-btn {
+  width: calc(100% - 40px);
+  margin: 8px 20px 0 20px;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #888;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.meeting-btn:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #aaa;
+}
+
+.meeting-btn.active {
+  border-color: #2ecc71;
+  color: #2ecc71;
+  background-color: rgba(46, 204, 113, 0.1);
+  box-shadow: 0 0 12px rgba(46, 204, 113, 0.2);
+}
+
+.meeting-btn .icon {
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.meeting-btn .meeting-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.transcript-section {
+  padding: 0 20px 16px;
+}
+
+.transcript-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.transcript-header h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.clear-btn {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.clear-btn:hover {
+  color: #ff4444;
+  background: rgba(255, 68, 68, 0.1);
+}
+
+.transcript-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 12px;
+  min-height: 80px;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #ccc;
+}
+
+.transcript-box::-webkit-scrollbar {
+  width: 4px;
+}
+
+.transcript-box::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.transcript-box .placeholder {
+  color: #555;
+  font-style: italic;
+}
+
+.transcript-box .interim {
+  color: #667eea;
+  opacity: 0.7;
+}
+
+.footer {
+  padding: 12px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.shortcuts-hint {
+  font-size: 11px;
+  color: #555;
+}
+
+.shortcuts-hint kbd {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: monospace;
+  font-size: 10px;
+}
+
+.donate-link {
+  font-size: 11px;
+  color: #667eea;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.donate-link:hover {
+  color: #764ba2;
+}
+
+.license-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.license-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.license-label.pro {
+  color: #ffd200;
+  background: rgba(247, 151, 30, 0.15);
+}
+
+.license-label.trial {
+  color: #ffd54f;
+  background: rgba(255, 193, 7, 0.15);
+}
+
+.license-label.flash {
+  animation: licenseFlash 0.3s ease 2;
+}
+
+@keyframes licenseFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.upgrade-bar-btn {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #f7971e, #ffd200);
+  color: #1a1a2e;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.upgrade-bar-btn:hover {
+  opacity: 0.85;
+}
+
+.pro-locked {
+  opacity: 0.4;
+  position: relative;
+}
+
+.pro-locked::after {
+  content: 'PRO';
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  font-size: 8px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #f7971e, #ffd200);
+  color: #1a1a2e;
+  padding: 1px 4px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+}

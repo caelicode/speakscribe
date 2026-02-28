@@ -1,0 +1,121 @@
+
+name: Publish to Chrome Web Store
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Upload only (do not publish)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  build-and-publish:
+    name: Build, Zip, and Publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Read version from manifest
+        id: version
+        run: |
+          VERSION=$(python3 -c "import json; print(json.load(open('manifest.json'))['version'])")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Extension version: ${VERSION}"
+
+      - name: Validate manifest.json
+        run: |
+          set -euo pipefail
+          python3 -c "
+          import json, sys
+
+          with open('manifest.json') as f:
+              m = json.load(f)
+
+          errors = []
+          if m.get('manifest_version') != 3:
+              errors.append('manifest_version must be 3')
+          if not m.get('name'):
+              errors.append('name is required')
+          if not m.get('version'):
+              errors.append('version is required')
+
+          if errors:
+              for e in errors:
+                  print(f'ERROR: {e}', file=sys.stderr)
+              sys.exit(1)
+          else:
+              print('manifest.json validation passed')
+          "
+
+      - name: Create extension zip
+        run: |
+          set -euo pipefail
+          ZIP_NAME="speakscribe-v${{ steps.version.outputs.version }}.zip"
+
+          zip -r "${ZIP_NAME}" \
+            manifest.json \
+            pages/ \
+            js/ \
+            css/ \
+            icons/ \
+            images/ \
+            whisper/ \
+            -x "*.git*" \
+            -x "*.github*" \
+            -x "*.md" \
+            -x "*.zip"
+
+          echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Created ${ZIP_NAME} ($(du -h "${ZIP_NAME}" | cut -f1))"
+          unzip -l "${ZIP_NAME}" | tail -5
+        id: zip
+
+      - name: Upload zip as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: speakscribe-v${{ steps.version.outputs.version }}
+          path: ${{ steps.zip.outputs.zip_name }}
+          retention-days: 30
+
+      - name: Install chrome-webstore-upload-cli
+        run: npm install -g chrome-webstore-upload-cli@3
+
+      - name: Upload to Chrome Web Store
+        env:
+          EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "Uploading ${{ steps.zip.outputs.zip_name }} to Chrome Web Store..."
+          chrome-webstore-upload upload \
+            --source "${{ steps.zip.outputs.zip_name }}" \
+            --extension-id "${EXTENSION_ID}"
+          echo "Upload complete."
+
+      - name: Publish to Chrome Web Store
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        env:
+          EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "Publishing extension to Chrome Web Store..."
+          chrome-webstore-upload publish \
+            --extension-id "${EXTENSION_ID}"
+          echo "Published successfully."
