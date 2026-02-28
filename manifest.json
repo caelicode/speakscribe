@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "SpeakScribe - Live Speech to Text",
   "version": "2.1.2",
-  "description": "Real-time speech-to-text with voice commands, offline Whisper AI, meeting transcription, direct text injection, smart punctuation, and screen-share safe overlay.",
+  "description": "Real-time speech-to-text with voice commands, offline Whisper AI, meeting transcription, and smart punctuation.",
   "permissions": [
     "storage",
     "commands",
