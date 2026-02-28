@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.3] - 2026-02-28
+
+### Other Changes
+
+- Add real LemonSqueezy checkout URLs and monthly pricing tier
+
+
 ## [2.1.2] - 2026-02-28
 
 ### Other Changes
