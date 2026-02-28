@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpeakScribe - Live Speech to Text Chrome Extension</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    /* Nav */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      text-decoration: none;
+    }
+    .nav-brand .logo {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a {
+      color: #a0a0b0;
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: #fff; }
+    .nav-cta {
+      padding: 8px 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 8px;
+      color: #fff !important;
+      font-weight: 600;
+      font-size: 14px !important;
+    }
+    .nav-cta:hover { opacity: 0.9; }
+
+    /* Hero */
+    .hero {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 80px 24px 60px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: rgba(102, 126, 234, 0.15);
+      border: 1px solid rgba(102, 126, 234, 0.3);
+      color: #667eea;
+      padding: 6px 18px;
+      border-radius: 24px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 24px;
+      letter-spacing: 0.5px;
+    }
+    .hero h1 {
+      font-size: 52px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      font-size: 19px;
+      color: #a0a0b0;
+      max-width: 600px;
+      margin: 0 auto 36px;
+      line-height: 1.6;
+    }
+    .hero-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .btn-primary {
+      display: inline-block;
+      padding: 14px 32px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-secondary {
+      display: inline-block;
+      padding: 14px 32px;
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #ccc;
+      font-size: 16px;
+      font-weight: 600;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover { border-color: rgba(255,255,255,0.3); color: #fff; }
+
+    /* Features */
+    .features {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 60px 24px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    @media (max-width: 768px) {
+      .features { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 36px; }
+    }
+    .feature-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 28px;
+    }
+    .feature-card .icon {
+      font-size: 28px;
+      margin-bottom: 14px;
+    }
+    .feature-card h3 {
+      font-size: 17px;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .feature-card p {
+      font-size: 14px;
+      color: #888;
+      line-height: 1.6;
+    }
+
+    /* Pricing */
+    .pricing {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 60px 24px;
+      text-align: center;
+    }
+    .pricing h2 {
+      font-size: 32px;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .pricing .subtitle {
+      font-size: 16px;
+      color: #888;
+      margin-bottom: 36px;
+    }
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    @media (max-width: 768px) {
+      .pricing-grid { grid-template-columns: 1fr; }
+    }
+    .price-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 28px;
+    }
+    .price-card.featured {
+      border-color: rgba(247, 151, 30, 0.5);
+      box-shadow: 0 0 30px rgba(247, 151, 30, 0.08);
+    }
+    .price-card h3 {
+      font-size: 18px;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .price-card .price {
+      font-size: 36px;
+      font-weight: 800;
+      color: #fff;
+      margin: 8px 0 4px;
+    }
+    .price-card .period {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 16px;
+    }
+    .price-card .price-btn {
+      display: block;
+      padding: 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 15px;
+      transition: all 0.2s;
+    }
+    .price-btn-monthly { background: linear-gradient(135deg, #2196f3, #42a5f5); color: #fff; }
+    .price-btn-yearly { background: linear-gradient(135deg, #f7971e, #ffd200); color: #1a1a2e; }
+    .price-btn-lifetime { background: linear-gradient(135deg, #9c27b0, #673ab7); color: #fff; }
+    .price-card .price-btn:hover { opacity: 0.9; }
+    .savings {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 2px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      background: rgba(76, 175, 80, 0.2);
+      border: 1px solid rgba(76, 175, 80, 0.4);
+      border-radius: 12px;
+      color: #81c784;
+    }
+
+    /* Footer */
+    footer {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: #555;
+    }
+    footer a { color: #667eea; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="index.html" class="nav-brand">
+      <div class="logo">&#127908;</div>
+      SpeakScribe
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="#install" class="nav-cta">Install Free</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-badge">Chrome Extension</div>
+    <h1><span class="gradient">Turn your voice</span><br>into text, instantly</h1>
+    <p>Real-time speech-to-text on any webpage. Smart punctuation, voice commands, offline AI transcription, and meeting mode, all in your browser.</p>
+    <div class="hero-buttons">
+      <a href="#install" class="btn-primary" id="install">Install for Free</a>
+      <a href="#pricing" class="btn-secondary">View Pricing</a>
+    </div>
+  </section>
+
+  <section class="features" id="features">
+    <div class="feature-card">
+      <div class="icon">&#9889;</div>
+      <h3>Real-Time Transcription</h3>
+      <p>See your words appear instantly as you speak. Works on any webpage with the floating widget or popup interface.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#127908;</div>
+      <h3>Smart Punctuation</h3>
+      <p>Automatic commas, periods, and capitalization. Your transcripts come out clean and readable without manual editing.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#128483;</div>
+      <h3>Voice Commands</h3>
+      <p>Say "new line", "new paragraph", or "delete last word" to control your text hands-free while dictating.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#129302;</div>
+      <h3>Whisper AI (Offline)</h3>
+      <p>Pro feature: Run OpenAI's Whisper model locally on your device. No internet required, complete privacy guaranteed.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#127760;</div>
+      <h3>30+ Languages</h3>
+      <p>Pro feature: Transcribe in Spanish, French, German, Japanese, Chinese, and many more languages with high accuracy.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#128221;</div>
+      <h3>Meeting Transcription</h3>
+      <p>Pro feature: Capture audio from any browser tab to transcribe meetings, lectures, and video calls in real time.</p>
+    </div>
+  </section>
+
+  <section class="pricing" id="pricing">
+    <h2>Simple, fair pricing</h2>
+    <p class="subtitle">Start free. Upgrade when you need more.</p>
+    <div class="pricing-grid">
+      <div class="price-card">
+        <h3>Pro Monthly</h3>
+        <div class="price">$3.49</div>
+        <div class="period">per month</div>
+        <a href="https://speakscribe.lemonsqueezy.com/checkout/buy/caede629-71b8-4439-a967-6b20a0411661" class="price-btn price-btn-monthly">Go Monthly</a>
+      </div>
+      <div class="price-card featured">
+        <h3>Pro Yearly</h3>
+        <div class="price">$29.99</div>
+        <div class="period">per year</div>
+        <div class="savings">Save 28%</div>
+        <a href="https://speakscribe.lemonsqueezy.com/checkout/buy/6800dbe9-ff67-4f18-a9df-76d74048ae7d" class="price-btn price-btn-yearly" style="margin-top:12px;">Upgrade to Pro</a>
+      </div>
+      <div class="price-card">
+        <h3>Lifetime</h3>
+        <div class="price">$79.99</div>
+        <div class="period">one-time payment</div>
+        <a href="https://speakscribe.lemonsqueezy.com/checkout/buy/a1d8e1ff-2b0e-4294-86a8-1507619f804e" class="price-btn price-btn-lifetime">Get Lifetime Access</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>&copy; 2026 SpeakScribe. All rights reserved.</span>
+    <div>
+      <a href="privacy.html">Privacy Policy</a> &nbsp;|&nbsp;
+      <a href="mailto:bertrandmbanwi@gmail.com">Contact</a>
+    </div>
+  </footer>
+
+</body>
+</html>
