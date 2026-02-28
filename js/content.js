@@ -810,11 +810,10 @@
     });
 
     const hideBtn = makeActionBtn('icons/ui/delete-24.png', 'Hide SpeakScribe', () => {
-      if (isRecording) {
+      if (isListening) {
         if (!confirm('Recording is active. Hide SpeakScribe anyway?')) return;
       }
       widget.style.display = 'none';
-      // Show again via keyboard shortcut or popup
       chrome.runtime.sendMessage({ type: 'WIDGET_HIDDEN' }).catch(() => {});
     });
     hideBtn.className = 'ss-action-btn ss-hide-btn';
