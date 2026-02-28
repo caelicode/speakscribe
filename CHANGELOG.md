@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1] - 2026-02-28
+
+### Other Changes
+
+- Initial commit: SpeakScribe v2.1.0 - Live Speech to Text Chrome Extension
+
+
 ## [2.1.0] - 2026-02-28
 
 ### Features
