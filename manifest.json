@@ -6,7 +6,6 @@
   "permissions": [
     "storage",
     "commands",
-    "downloads",
     "tabCapture",
     "offscreen",
     "activeTab"
