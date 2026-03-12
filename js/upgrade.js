@@ -1,6 +1,8 @@
-const PURCHASE_URL_YEARLY = 'https://speakscribe.lemonsqueezy.com/checkout/buy/speakscribe-pro-yearly';
-const PURCHASE_URL_LIFETIME = 'https://speakscribe.lemonsqueezy.com/checkout/buy/speakscribe-pro-lifetime';
+const PURCHASE_URL_MONTHLY = 'https://speakscribe.lemonsqueezy.com/checkout/buy/caede629-71b8-4439-a967-6b20a0411661';
+const PURCHASE_URL_YEARLY = 'https://speakscribe.lemonsqueezy.com/checkout/buy/6800dbe9-ff67-4f18-a9df-76d74048ae7d';
+const PURCHASE_URL_LIFETIME = 'https://speakscribe.lemonsqueezy.com/checkout/buy/a1d8e1ff-2b0e-4294-86a8-1507619f804e';
 
+const upgradeMonthlyBtn = document.getElementById('upgradeMonthlyBtn');
 const upgradeYearlyBtn = document.getElementById('upgradeYearlyBtn');
 const upgradeLifetimeBtn = document.getElementById('upgradeLifetimeBtn');
 const startTrialBtn = document.getElementById('startTrialBtn');
@@ -64,6 +66,10 @@ async function refreshUI() {
     }
   }
 }
+
+upgradeMonthlyBtn.addEventListener('click', () => {
+  chrome.tabs.create({ url: PURCHASE_URL_MONTHLY });
+});
 
 upgradeYearlyBtn.addEventListener('click', () => {
   chrome.tabs.create({ url: PURCHASE_URL_YEARLY });

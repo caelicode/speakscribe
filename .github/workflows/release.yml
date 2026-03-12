@@ -9,7 +9,7 @@ on:
       - 'js/**'
       - 'css/**'
       - 'manifest.json'
-      - '*.html'
+      - 'pages/**'
       - 'icons/**'
       - 'images/**'
   workflow_dispatch:

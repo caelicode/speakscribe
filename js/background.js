@@ -171,6 +171,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       sendResponse({ success: true });
       break;
 
+    case 'WIDGET_HIDDEN':
+      // Track that widget is hidden for this tab
+      if (sender.tab && sender.tab.id) {
+        chrome.storage.session.set({ ['widget_hidden_' + sender.tab.id]: true }).catch(() => {});
+      }
+      sendResponse({ success: true });
+      break;
+
+    case 'GET_WIDGET_STATE':
+      // Check if widget is hidden for the active tab
+      if (request.tabId) {
+        chrome.storage.session.get('widget_hidden_' + request.tabId).then((data) => {
+          sendResponse({ hidden: !!data['widget_hidden_' + request.tabId] });
+        }).catch(() => sendResponse({ hidden: false }));
+        return true;
+      }
+      sendResponse({ hidden: false });
+      break;
+
     default:
       console.warn('Unknown message type:', request.type);
   }
