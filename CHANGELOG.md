@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.1.4] - 2026-03-12
+
+### Bug Fixes
+
+- **ci:** correct workflow configs for branch protection and zip contents
+
+### Other Changes
+
+- Merge pull request #6 from caelicode/fix/workflow-updates
+
+
 ## [2.1.2] - 2026-02-28
 
 ### Other Changes
