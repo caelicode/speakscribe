@@ -13,6 +13,8 @@ const meetingBtn = document.getElementById('meetingBtn');
 const exportMenu = document.getElementById('exportMenu');
 const formatIndicator = document.getElementById('formatIndicator');
 const engineBtns = document.querySelectorAll('.engine-btn');
+const showWidgetBtn = document.getElementById('showWidgetBtn');
+const showWidgetBar = document.getElementById('showWidgetBar');
 
 let engine = null;
 let isRecording = false;
@@ -251,10 +253,14 @@ function setupEventListeners() {
       document.removeEventListener('click', closeExportMenu);
 
 
-      await sendToBackground({
+      const response = await sendToBackground({
         type: 'EXPORT_TRANSCRIPT',
         format: currentExportFormat,
       });
+
+      if (response && response.success && response.data) {
+        downloadTranscript(response.data, currentExportFormat);
+      }
     });
   });
 
@@ -281,6 +287,16 @@ function setupEventListeners() {
     sendToBackground({ type: 'OPEN_OPTIONS' });
   });
 
+  // Show widget button (appears when widget was hidden)
+  if (showWidgetBtn) {
+    showWidgetBtn.addEventListener('click', async () => {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab && tab.id) {
+        chrome.tabs.sendMessage(tab.id, { type: 'SHOW_WIDGET' }).catch(() => {});
+        if (showWidgetBar) showWidgetBar.style.display = 'none';
+      }
+    });
+  }
 
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === 'STATE_UPDATE') {
@@ -357,6 +373,28 @@ function closeExportMenu(e) {
     exportMenu.classList.remove('open');
     document.removeEventListener('click', closeExportMenu);
   }
+}
+
+function downloadTranscript(content, format) {
+  const mimeTypes = {
+    txt: 'text/plain',
+    json: 'application/json',
+    srt: 'text/srt',
+    md: 'text/markdown'
+  };
+  const mimeType = mimeTypes[format] || 'text/plain';
+  const timestamp = new Date().toISOString().slice(0, 10);
+  const filename = 'speakscribe-transcript-' + timestamp + '.' + format;
+
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function updateEngineUI(engineName) {
