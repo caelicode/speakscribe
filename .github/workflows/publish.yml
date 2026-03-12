@@ -70,8 +70,7 @@ jobs:
             js/ \
             css/ \
             icons/ \
-            images/ \
-            whisper/ \
+            docs/ \
             -x "*.git*" \
             -x "*.github*" \
             -x "*.md" \
