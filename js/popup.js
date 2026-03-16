@@ -307,8 +307,8 @@ function setupEventListeners() {
   });
 
 
-  overlayBtn.addEventListener('click', () => {
-    sendToBackground({ type: 'OPEN_FLOATING' });
+  overlayBtn.addEventListener('click', async () => {
+    await sendToBackground({ type: 'OPEN_FLOATING' });
   });
 
 
