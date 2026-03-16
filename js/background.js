@@ -166,6 +166,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
       return true;
 
+    case 'GET_SESSION_LIMIT':
+      SpeakScribeLicense.getSessionLimit().then(limitMs => {
+        sendResponse({ limitMs });
+      }).catch(err => {
+        sendResponse({ limitMs: SpeakScribeLicense.FREE_SESSION_LIMIT_MS });
+      });
+      return true;
+
     case 'OPEN_UPGRADE':
       chrome.tabs.create({ url: chrome.runtime.getURL('pages/upgrade.html') });
       sendResponse({ success: true });

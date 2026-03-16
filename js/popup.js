@@ -15,6 +15,7 @@ const formatIndicator = document.getElementById('formatIndicator');
 const engineBtns = document.querySelectorAll('.engine-btn');
 const showWidgetBtn = document.getElementById('showWidgetBtn');
 const showWidgetBar = document.getElementById('showWidgetBar');
+const themeBtn = document.getElementById('themeBtn');
 
 let engine = null;
 let isRecording = false;
@@ -25,9 +26,19 @@ let useContentScript = false;
 let isMeetingMode = false;
 let currentExportFormat = 'txt';
 
+// Free-tier session timer state
+let sessionLimitMs = 0;       // 0 = unlimited (Pro/owner)
+let sessionElapsedMs = 0;
+let sessionTimerInterval = null;
+let isProOrOwner = false;
+
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('[SpeakScribe] Popup loaded, initializing...');
 
+  // Initialize theme
+  if (typeof SpeakScribeTheme !== 'undefined') {
+    await SpeakScribeTheme.init();
+  }
 
   const data = await chrome.storage.local.get(['settings', 'language', 'isMeetingMode']);
   const settings = data.settings || {};
@@ -115,6 +126,82 @@ document.addEventListener('DOMContentLoaded', async () => {
   await initLicenseUI();
 });
 
+// --- Free-tier session timer helpers ---
+function startSessionTimer() {
+  if (isProOrOwner || sessionLimitMs <= 0) return;
+  sessionElapsedMs = 0;
+  updateTimerDisplay();
+  sessionTimerInterval = setInterval(() => {
+    sessionElapsedMs += 1000;
+    updateTimerDisplay();
+    if (sessionElapsedMs >= sessionLimitMs) {
+      // Time is up: auto-stop recording
+      clearInterval(sessionTimerInterval);
+      sessionTimerInterval = null;
+      autoStopRecording();
+    }
+  }, 1000);
+}
+
+function stopSessionTimer() {
+  if (sessionTimerInterval) {
+    clearInterval(sessionTimerInterval);
+    sessionTimerInterval = null;
+  }
+  sessionElapsedMs = 0;
+  hideTimerDisplay();
+}
+
+function autoStopRecording() {
+  isRecording = false;
+  recordBtn.classList.remove('recording');
+  statusText.textContent = 'Session limit reached (5 min)';
+  statusText.classList.remove('active');
+  if (engine && engine.isListening) {
+    engine.stop();
+  }
+  sendToActiveTab({ type: 'STOP_RECOGNITION' }).catch(() => {});
+  sendToBackground({ type: 'SET_RECORDING', value: false });
+
+  // Flash the upgrade button to nudge conversion
+  const upgradeBtn = document.getElementById('upgradeBtn');
+  const licenseLabel = document.getElementById('licenseLabel');
+  if (licenseLabel) {
+    licenseLabel.textContent = 'Upgrade for unlimited';
+    licenseLabel.classList.add('flash');
+    setTimeout(() => licenseLabel.classList.remove('flash'), 3000);
+  }
+  if (upgradeBtn) {
+    upgradeBtn.classList.add('flash');
+    setTimeout(() => upgradeBtn.classList.remove('flash'), 3000);
+  }
+}
+
+function updateTimerDisplay() {
+  const timerEl = document.getElementById('sessionTimer');
+  if (!timerEl) return;
+  const remainingMs = Math.max(0, sessionLimitMs - sessionElapsedMs);
+  const totalSec = Math.ceil(remainingMs / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  timerEl.textContent = min + ':' + String(sec).padStart(2, '0');
+  timerEl.style.display = 'inline-block';
+  // Turn red when under 60 seconds
+  if (remainingMs <= 60000) {
+    timerEl.classList.add('warning');
+  } else {
+    timerEl.classList.remove('warning');
+  }
+}
+
+function hideTimerDisplay() {
+  const timerEl = document.getElementById('sessionTimer');
+  if (timerEl) {
+    timerEl.style.display = 'none';
+    timerEl.classList.remove('warning');
+  }
+}
+
 function setupEventListeners() {
 
   recordBtn.addEventListener('click', async () => {
@@ -122,6 +209,10 @@ function setupEventListeners() {
     isRecording = !isRecording;
 
     if (isRecording) {
+      // Check free-tier session limit before starting
+      if (!isProOrOwner && sessionLimitMs > 0) {
+        startSessionTimer();
+      }
       recordBtn.classList.add('recording');
       statusText.textContent = 'Starting...';
       statusText.classList.add('active');
@@ -140,6 +231,7 @@ function setupEventListeners() {
         startViaContentScript();
       }
     } else {
+      stopSessionTimer();
       recordBtn.classList.remove('recording');
       statusText.textContent = 'Ready to transcribe';
       statusText.classList.remove('active');
@@ -268,10 +360,11 @@ function setupEventListeners() {
   copyBtn.addEventListener('click', async () => {
     if (fullTranscript.trim()) {
       await navigator.clipboard.writeText(fullTranscript);
-      copyBtn.querySelector('.icon').textContent = '\u2713';
-      setTimeout(() => {
-        copyBtn.querySelector('.icon').textContent = '\uD83D\uDCCB';
-      }, 1500);
+      const labelEl = copyBtn.querySelector('.label');
+      if (labelEl) {
+        labelEl.textContent = 'Copied!';
+        setTimeout(() => { labelEl.textContent = 'Copy'; }, 1500);
+      }
     }
   });
 
@@ -286,6 +379,14 @@ function setupEventListeners() {
   settingsBtn.addEventListener('click', () => {
     sendToBackground({ type: 'OPEN_OPTIONS' });
   });
+
+  // Theme toggle button: cycles dark -> light -> system
+  if (themeBtn && typeof SpeakScribeTheme !== 'undefined') {
+    themeBtn.addEventListener('click', async () => {
+      const next = await SpeakScribeTheme.cycleTheme();
+      themeBtn.title = 'Theme: ' + next;
+    });
+  }
 
   // Show widget button (appears when widget was hidden)
   if (showWidgetBtn) {
@@ -506,19 +607,28 @@ async function initLicenseUI() {
   const info = await sendToBackground({ type: 'GET_LICENSE_INFO' });
   if (!info) return;
 
+  // Store session limit for timer logic
+  sessionLimitMs = info.sessionLimitMs || 0;
+  isProOrOwner = info.isPro;
+
   if (info.isPro) {
-    licenseLabel.textContent = 'Pro';
-    licenseLabel.classList.add('pro');
+    if (info.isOwner) {
+      licenseLabel.textContent = 'Lifetime';
+      licenseLabel.classList.add('pro', 'owner');
+    } else {
+      licenseLabel.textContent = 'Pro';
+      licenseLabel.classList.add('pro');
+    }
     upgradeBtn.style.display = 'none';
 
-    if (info.trial && info.trial.active) {
+    if (info.trial && info.trial.active && !info.isOwner) {
       licenseLabel.textContent = 'Trial (' + info.trial.daysRemaining + 'd)';
       licenseLabel.classList.add('trial');
       upgradeBtn.style.display = 'inline-block';
       upgradeBtn.textContent = 'Buy Pro';
     }
   } else {
-    licenseLabel.textContent = 'Free';
+    licenseLabel.textContent = 'Free (5 min/session)';
     upgradeBtn.style.display = 'inline-block';
 
     const whisperBtn = document.getElementById('whisperBtn');

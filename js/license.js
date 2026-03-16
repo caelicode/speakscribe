@@ -11,7 +11,8 @@ const SpeakScribeLicense = (() => {
     builtInVoiceCommands: true,
     copyTranscript: true,
     exportTxt: true,
-    languageEnUS: true
+    languageEnUS: true,
+    floatingOverlay: true
   };
 
   const PRO_FEATURES = {
@@ -44,7 +45,13 @@ const SpeakScribeLicense = (() => {
     PRODUCT_NAME: 'speakscribe_product_name'
   };
 
+  // Owner bypass: enter this key in the activation form to get permanent Pro
+  // Change this to any secret phrase you prefer
+  const OWNER_KEY = 'SS-OWNER-BECS-2024';
+
   const TRIAL_DAYS = 7;
+  // Free-tier session recording limit (5 minutes in milliseconds)
+  const FREE_SESSION_LIMIT_MS = 5 * 60 * 1000;
   const VALIDATION_INTERVAL_MS = 24 * 60 * 60 * 1000;
   // LemonSqueezy License API (no API key required, only the license key)
   const LS_API_BASE = 'https://api.lemonsqueezy.com/v1/licenses';
@@ -98,10 +105,17 @@ const SpeakScribeLicense = (() => {
     const data = await getStorageData([
       STORAGE_KEYS.LICENSE,
       STORAGE_KEYS.TRIAL_START,
-      STORAGE_KEYS.LAST_VALIDATED
+      STORAGE_KEYS.LAST_VALIDATED,
+      STORAGE_KEYS.LICENSE_KEY
     ]);
 
     const license = data[STORAGE_KEYS.LICENSE];
+
+    // Owner bypass: permanent Pro, no validation timeout
+    if (license === TIERS.PRO && data[STORAGE_KEYS.LICENSE_KEY] === OWNER_KEY) {
+      return TIERS.PRO;
+    }
+
     if (license === TIERS.PRO) {
       const lastValidated = data[STORAGE_KEYS.LAST_VALIDATED] || 0;
       const elapsed = Date.now() - lastValidated;
@@ -182,12 +196,38 @@ const SpeakScribeLicense = (() => {
     return tier === TIERS.PRO;
   }
 
+  // Check whether the current user is the extension owner
+  async function isOwner() {
+    const data = await getStorageData([STORAGE_KEYS.LICENSE_KEY]);
+    return data[STORAGE_KEYS.LICENSE_KEY] === OWNER_KEY;
+  }
+
+  // Returns the free session limit in ms, or 0 if unlimited (Pro/owner/trial)
+  async function getSessionLimit() {
+    const tier = await getCurrentTier();
+    if (tier === TIERS.PRO) return 0; // unlimited
+    return FREE_SESSION_LIMIT_MS;
+  }
+
   async function activateLicense(licenseKey) {
     if (!licenseKey || typeof licenseKey !== 'string' || licenseKey.trim().length < 8) {
       return { success: false, error: 'Invalid license key format' };
     }
 
     const key = licenseKey.trim();
+
+    // Owner bypass: activate permanently without API call
+    if (key === OWNER_KEY) {
+      await setStorageData({
+        [STORAGE_KEYS.LICENSE]: TIERS.PRO,
+        [STORAGE_KEYS.LICENSE_KEY]: OWNER_KEY,
+        [STORAGE_KEYS.ACTIVATED_AT]: Date.now(),
+        [STORAGE_KEYS.LAST_VALIDATED]: Date.now(),
+        [STORAGE_KEYS.CUSTOMER_EMAIL]: 'owner@speakscribe.app',
+        [STORAGE_KEYS.PRODUCT_NAME]: 'SpeakScribe Pro (Owner)'
+      });
+      return { success: true, tier: TIERS.PRO };
+    }
 
     try {
       const body = new URLSearchParams();
@@ -288,6 +328,11 @@ const SpeakScribeLicense = (() => {
       return { valid: false, reason: 'No active license' };
     }
 
+    // Owner bypass: always valid, no API check needed
+    if (data[STORAGE_KEYS.LICENSE_KEY] === OWNER_KEY) {
+      return { valid: true, cached: true, owner: true };
+    }
+
     const lastValidated = data[STORAGE_KEYS.LAST_VALIDATED] || 0;
     const elapsed = Date.now() - lastValidated;
     if (elapsed < VALIDATION_INTERVAL_MS) {
@@ -353,6 +398,8 @@ const SpeakScribeLicense = (() => {
 
     const tier = await getCurrentTier();
     const trialInfo = await getTrialInfo();
+    const ownerFlag = data[STORAGE_KEYS.LICENSE_KEY] === OWNER_KEY;
+    const sessionLimitMs = (tier === TIERS.PRO) ? 0 : FREE_SESSION_LIMIT_MS;
 
     const maskedKey = data[STORAGE_KEYS.LICENSE_KEY]
       ? data[STORAGE_KEYS.LICENSE_KEY].substring(0, 8) + '...'
@@ -361,6 +408,8 @@ const SpeakScribeLicense = (() => {
     return {
       tier,
       isPro: tier === TIERS.PRO,
+      isOwner: ownerFlag,
+      sessionLimitMs,
       licenseKey: maskedKey,
       customerEmail: data[STORAGE_KEYS.CUSTOMER_EMAIL] || null,
       productName: data[STORAGE_KEYS.PRODUCT_NAME] || null,
@@ -384,9 +433,12 @@ const SpeakScribeLicense = (() => {
     PRO_FEATURES,
     FREE_LANGUAGES,
     TRIAL_DAYS,
+    FREE_SESSION_LIMIT_MS,
     ensureInstallDate,
     getCurrentTier,
     isProUser,
+    isOwner,
+    getSessionLimit,
     getTrialInfo,
     startTrial,
     hasFeature,

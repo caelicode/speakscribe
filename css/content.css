@@ -1,4 +1,4 @@
-
+/* SpeakScribe Content/Floating Widget - v3.0 (Teal/Cyan) */
 
 #speakscribe-widget {
   position: fixed;
@@ -34,7 +34,7 @@
   min-height: 40px;
   max-height: 400px;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(0, 210, 255, 0.1);
   color: #e0e0e0;
   font-size: 13px;
   line-height: 1.5;
@@ -55,12 +55,12 @@
 }
 
 #speakscribe-bubble::-webkit-scrollbar-thumb {
-  background: rgba(102, 126, 234, 0.4);
+  background: rgba(0, 210, 255, 0.4);
   border-radius: 2px;
 }
 
 #speakscribe-bubble::-webkit-scrollbar-thumb:hover {
-  background: rgba(102, 126, 234, 0.6);
+  background: rgba(0, 210, 255, 0.6);
 }
 
 #speakscribe-actions {
@@ -78,8 +78,8 @@
   height: 26px;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  background-color: rgba(102, 126, 234, 0.15);
-  color: #667eea;
+  background-color: rgba(0, 210, 255, 0.15);
+  color: #00d2ff;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -91,8 +91,8 @@
 }
 
 .ss-action-btn:hover {
-  background-color: rgba(102, 126, 234, 0.25);
-  border-color: rgba(102, 126, 234, 0.4);
+  background-color: rgba(0, 210, 255, 0.25);
+  border-color: rgba(0, 210, 255, 0.4);
 }
 
 .ss-action-btn:active {
@@ -142,14 +142,14 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
   border: none;
   color: white;
   font-size: 18px;
   font-weight: bold;
   cursor: grab;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 210, 255, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -158,8 +158,7 @@
 }
 
 #speakscribe-fab:hover {
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-  
+  box-shadow: 0 6px 20px rgba(0, 210, 255, 0.5);
 }
 
 #speakscribe-fab:active {
@@ -216,9 +215,9 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background-color: rgba(102, 126, 234, 0.2);
-  border: 1px solid rgba(102, 126, 234, 0.3);
-  color: #667eea;
+  background-color: rgba(0, 210, 255, 0.2);
+  border: 1px solid rgba(0, 210, 255, 0.3);
+  color: #00d2ff;
   font-size: 11px;
   font-weight: bold;
   cursor: pointer;
@@ -231,8 +230,8 @@
 }
 
 #speakscribe-help-btn:hover {
-  background-color: rgba(102, 126, 234, 0.3);
-  border-color: rgba(102, 126, 234, 0.5);
+  background-color: rgba(0, 210, 255, 0.3);
+  border-color: rgba(0, 210, 255, 0.5);
 }
 
 #speakscribe-cmd-palette {
@@ -245,7 +244,7 @@
   max-width: 320px;
   max-height: 300px;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(0, 210, 255, 0.1);
   animation: ss-fadeIn 0.3s ease;
   user-select: none;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -264,12 +263,12 @@
 }
 
 #speakscribe-cmd-palette::-webkit-scrollbar-thumb {
-  background: rgba(102, 126, 234, 0.4);
+  background: rgba(0, 210, 255, 0.4);
   border-radius: 2px;
 }
 
 #speakscribe-cmd-palette::-webkit-scrollbar-thumb:hover {
-  background: rgba(102, 126, 234, 0.6);
+  background: rgba(0, 210, 255, 0.6);
 }
 
 #speakscribe-cmd-palette::before {
@@ -295,20 +294,20 @@
   gap: 2px;
   padding: 6px;
   border-radius: 6px;
-  background-color: rgba(102, 126, 234, 0.1);
-  border: 1px solid rgba(102, 126, 234, 0.2);
+  background-color: rgba(0, 210, 255, 0.1);
+  border: 1px solid rgba(0, 210, 255, 0.2);
   transition: all 0.2s ease;
 }
 
 .ss-cmd-item:hover {
-  background-color: rgba(102, 126, 234, 0.15);
-  border-color: rgba(102, 126, 234, 0.3);
+  background-color: rgba(0, 210, 255, 0.15);
+  border-color: rgba(0, 210, 255, 0.3);
 }
 
 .ss-cmd-trigger {
   font-size: 11px;
   font-weight: 700;
-  color: #667eea;
+  color: #00d2ff;
 }
 
 .ss-cmd-desc {
@@ -340,53 +339,28 @@
 }
 
 @keyframes ss-slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes ss-fabGlow {
-  0%,
-  100% {
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  }
-  50% {
-    box-shadow: 0 6px 24px rgba(102, 126, 234, 0.6);
-  }
+  0%, 100% { box-shadow: 0 4px 12px rgba(0, 210, 255, 0.4); }
+  50% { box-shadow: 0 6px 24px rgba(0, 210, 255, 0.6); }
 }
 
 @keyframes ss-ringPulse {
-  0%,
-  100% {
-    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.5), 0 0 0 0 rgba(231, 76, 60, 0.7);
-  }
-  50% {
-    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.5), 0 0 0 8px rgba(231, 76, 60, 0);
-  }
+  0%, 100% { box-shadow: 0 4px 12px rgba(231, 76, 60, 0.5), 0 0 0 0 rgba(231, 76, 60, 0.7); }
+  50% { box-shadow: 0 4px 12px rgba(231, 76, 60, 0.5), 0 0 0 8px rgba(231, 76, 60, 0); }
 }
 
 @keyframes ss-meetingPulse {
-  0%,
-  100% {
-    box-shadow: 0 4px 12px rgba(46, 204, 113, 0.5), 0 0 0 0 rgba(46, 204, 113, 0.7);
-  }
-  50% {
-    box-shadow: 0 4px 12px rgba(46, 204, 113, 0.5), 0 0 0 8px rgba(46, 204, 113, 0);
-  }
+  0%, 100% { box-shadow: 0 4px 12px rgba(46, 204, 113, 0.5), 0 0 0 0 rgba(46, 204, 113, 0.7); }
+  50% { box-shadow: 0 4px 12px rgba(46, 204, 113, 0.5), 0 0 0 8px rgba(46, 204, 113, 0); }
 }
 
 @keyframes ss-fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .ss-upgrade-prompt {

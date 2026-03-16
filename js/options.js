@@ -36,7 +36,17 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+const themeModeSelect = document.getElementById('themeMode');
+
+document.addEventListener('DOMContentLoaded', async function() {
+  // Initialize theme
+  if (typeof SpeakScribeTheme !== 'undefined') {
+    const currentTheme = await SpeakScribeTheme.init();
+    if (themeModeSelect) {
+      themeModeSelect.value = currentTheme;
+    }
+  }
+
   loadSettings();
   attachEventListeners();
   initOptionsLicenseUI();
@@ -322,6 +332,13 @@ function attachEventListeners() {
       saveSettings();
     }
   });
+
+  // Theme selector
+  if (themeModeSelect && typeof SpeakScribeTheme !== 'undefined') {
+    themeModeSelect.addEventListener('change', function() {
+      SpeakScribeTheme.setTheme(themeModeSelect.value);
+    });
+  }
 }
 
 async function initOptionsLicenseUI() {

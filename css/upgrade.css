@@ -1,3 +1,5 @@
+/* SpeakScribe Upgrade Page - v3.0 (Teal/Cyan) */
+
 * {
   margin: 0;
   padding: 0;
@@ -138,7 +140,7 @@ body {
 }
 
 .lifetime-header {
-  background: linear-gradient(135deg, rgba(156, 39, 176, 0.2), rgba(103, 58, 183, 0.1));
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.2), rgba(58, 123, 213, 0.1));
 }
 
 .plan-header h2 {
@@ -238,17 +240,17 @@ body {
 }
 
 .monthly-btn {
-  background: linear-gradient(135deg, #2196f3, #42a5f5);
+  background: linear-gradient(135deg, #00d2ff, #3a7bd5);
   color: #fff;
 }
 
 .lifetime-btn {
-  background: linear-gradient(135deg, #9c27b0, #673ab7);
+  background: linear-gradient(135deg, #00d2ff, #3a7bd5);
   color: #fff;
 }
 
 .monthly-header {
-  background: linear-gradient(135deg, rgba(33, 150, 243, 0.2), rgba(66, 165, 245, 0.1));
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.2), rgba(58, 123, 213, 0.1));
 }
 
 .plan-savings {
@@ -268,8 +270,8 @@ body {
 }
 
 .trial-card {
-  background: rgba(33, 150, 243, 0.1);
-  border: 1px solid rgba(33, 150, 243, 0.3);
+  background: rgba(0, 210, 255, 0.1);
+  border: 1px solid rgba(0, 210, 255, 0.3);
   border-radius: 12px;
   padding: 24px;
   text-align: center;
@@ -292,16 +294,16 @@ body {
   padding: 10px 32px;
   font-size: 15px;
   font-weight: 600;
-  border: 2px solid #2196f3;
+  border: 2px solid #00d2ff;
   background: transparent;
-  color: #64b5f6;
+  color: #00d2ff;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .trial-btn:hover {
-  background: rgba(33, 150, 243, 0.15);
+  background: rgba(0, 210, 255, 0.15);
 }
 
 .activate-section {
@@ -336,7 +338,7 @@ body {
 
 .license-input:focus {
   outline: none;
-  border-color: rgba(247, 151, 30, 0.5);
+  border-color: rgba(0, 210, 255, 0.5);
 }
 
 .license-input::placeholder {
@@ -372,7 +374,7 @@ body {
 
 .activate-status.success { color: #81c784; }
 .activate-status.error { color: #ef9a9a; }
-.activate-status.info { color: #64b5f6; }
+.activate-status.info { color: #00d2ff; }
 
 .deactivate-section {
   text-align: center;
@@ -403,7 +405,7 @@ body {
 }
 
 .upgrade-footer a {
-  color: #64b5f6;
+  color: #00d2ff;
   text-decoration: none;
 }
 
