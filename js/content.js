@@ -411,11 +411,12 @@
   }, true);
 
   document.addEventListener('focusout', (e) => {
-    setTimeout(() => {
-      const active = document.activeElement;
-      if (active && widget && widget.contains(active)) return;
-      if (active && findTextInputAncestor(active)) return;
-    }, 100);
+    // When focus leaves a text input, remember it as the last known target
+    // so we can inject text even if focus moved to the FAB or widget
+    const leavingTarget = findTextInputAncestor(e.target);
+    if (leavingTarget) {
+      activeInputTarget = leavingTarget;
+    }
   }, true);
 
 
@@ -557,10 +558,22 @@
           textToInject = textToInject.toUpperCase();
         }
 
-        if (activeInputTarget && document.body.contains(activeInputTarget)) {
+        // Try to find the best injection target
+        let target = activeInputTarget;
+        if (!target || !document.body.contains(target)) {
+          // Fallback: find the currently focused text field
+          const focused = document.activeElement;
+          const found = findTextInputAncestor(focused);
+          if (found) {
+            target = found;
+            activeInputTarget = found;
+          }
+        }
+
+        if (target && document.body.contains(target)) {
           const prefix = lastInjectedFinalText ? ' ' : '';
           const finalText = prefix + textToInject;
-          const injected = injectTextIntoField(activeInputTarget, finalText);
+          const injected = injectTextIntoField(target, finalText);
           if (injected) {
             lastInjectedFinalText = textToInject;
             addToHistory(textToInject);
@@ -573,7 +586,11 @@
               transcriptLines = [];
               updateBubble('', '');
             }, 800);
+          } else {
+            console.warn('[SpeakScribe] Injection failed for target:', target.tagName, target.className);
           }
+        } else {
+          console.log('[SpeakScribe] No active text field to inject into');
         }
       }
     };
@@ -917,6 +934,7 @@
       btn.textContent = iconSrc;
     }
     btn.title = titleText;
+    btn.addEventListener('mousedown', (e) => { e.preventDefault(); }); // Prevent focus steal
     btn.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
     return btn;
   }
@@ -1010,8 +1028,12 @@
 
   function setupFabClick() {
     let mouseDownTime = 0;
-    fab.addEventListener('mousedown', () => { mouseDownTime = Date.now(); });
-    fab.addEventListener('mouseup', () => {
+    fab.addEventListener('mousedown', (e) => {
+      e.preventDefault(); // Prevent FAB from stealing focus from the active text field
+      mouseDownTime = Date.now();
+    });
+    fab.addEventListener('mouseup', (e) => {
+      e.preventDefault();
       if (Date.now() - mouseDownTime < 300 && !_hasDragged) {
         toggleRecording();
       }

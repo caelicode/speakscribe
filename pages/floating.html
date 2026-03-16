@@ -14,16 +14,38 @@
       <span class="titlebar-title">SpeakScribe Live</span>
     </div>
     <div class="titlebar-controls">
-      <button class="titlebar-btn" id="opacityBtn" title="Toggle opacity">&#128065;</button>
-      <button class="titlebar-btn" id="pinBtn" title="Always on top">&#128204;</button>
-      <button class="titlebar-btn" id="minimizeBtn" title="Minimize">&#8722;</button>
+      <button class="titlebar-btn" id="opacityBtn" title="Toggle opacity">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 4.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5c-1.7-4.4-6-7.5-11-7.5z" stroke="currentColor" stroke-width="2" fill="none"/>
+          <circle cx="12" cy="12" r="3.5" stroke="currentColor" stroke-width="2" fill="none"/>
+        </svg>
+      </button>
+      <button class="titlebar-btn" id="pinBtn" title="Always on top">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 3l-4 4-4-1-4 4 6 6 4-4-1-4 4-4-1-1z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/>
+          <line x1="6" y1="18" x2="10" y2="14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <button class="titlebar-btn" id="minimizeBtn" title="Minimize">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
     </div>
   </div>
 
   
   <div class="transcript-area" id="transcriptArea">
     <div class="empty-state" id="emptyState">
-      <div class="icon">&#127908;</div>
+      <div class="icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="teal" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00d2ff"/><stop offset="100%" stop-color="#3a7bd5"/></linearGradient></defs>
+          <rect x="8" y="2" width="8" height="13" rx="4" fill="url(#teal)"/>
+          <path d="M5 11v1a7 7 0 0 0 14 0v-1" stroke="url(#teal)" stroke-width="1.8" stroke-linecap="round"/>
+          <line x1="12" y1="19" x2="12" y2="22" stroke="url(#teal)" stroke-width="1.8" stroke-linecap="round"/>
+          <line x1="9" y1="22" x2="15" y2="22" stroke="url(#teal)" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </div>
       <div>Start speaking to see live transcription</div>
       <div style="font-size: 11px; margin-top: 4px;">This window is invisible when sharing a specific tab or window</div>
     </div>
