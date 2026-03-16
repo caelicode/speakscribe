@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.3.0] - 2026-03-16
+
+### Features
+
+- redesign UI with teal/cyan theme, add dark/light mode, session limit, and owner bypass
+
+### Bug Fixes
+
+- **ci:** correct workflow configs for branch protection and zip contents
+
+### Other Changes
+
+- Merge pull request #7 from caelicode/feature/v2.2.0-redesign-and-session-limit
+- Merge pull request #2 from caelicode/renovate/major-github-actions
+- Merge pull request #6 from caelicode/fix/workflow-updates
+- **deps:** update github-actions
+
+
 ## [2.1.2] - 2026-02-28
 
 ### Other Changes
