@@ -23,3 +23,6 @@ models/
 whisper/*.bin
 whisper/*.onnx
 gh_*
+
+# Dev preview files
+popup-preview.html

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <defs>
+    <linearGradient id="teal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00d2ff"/>
+      <stop offset="100%" stop-color="#3a7bd5"/>
+    </linearGradient>
+  </defs>
+  <polyline points="3 6 5 6 21 6" stroke="url(#teal)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="url(#teal)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10 3h4a1 1 0 0 1 1 1v2H9V4a1 1 0 0 1 1-1z" stroke="url(#teal)" stroke-width="1.8"/>
+</svg>

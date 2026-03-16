@@ -234,7 +234,21 @@
 
         
         <section class="settings-section">
-            <h2>Floating Overlay <span class="pro-tag" data-pro="floatingOverlay">PRO</span></h2>
+            <h2>Appearance</h2>
+
+            <div class="setting-group">
+                <label for="themeMode">Theme</label>
+                <select id="themeMode">
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                    <option value="system">Follow System</option>
+                </select>
+                <p class="setting-hint">Choose a color theme for the popup and settings pages</p>
+            </div>
+        </section>
+
+        <section class="settings-section">
+            <h2>Floating Overlay</h2>
 
             <div class="setting-group">
                 <label class="toggle-switch">
@@ -306,11 +320,12 @@
         </div>
 
         <div class="attribution">
-            Icons by <a href="https://www.flaticon.com/authors/uniconlabs" target="_blank">Uniconlabs</a> from <a href="https://www.flaticon.com/" target="_blank">Flaticon</a>
+            SpeakScribe &copy; 2024. Custom icons.
         </div>
     </div>
 
     <script src="../js/license.js"></script>
+    <script src="../js/theme.js"></script>
     <script src="../js/options.js"></script>
 </body>
 </html>

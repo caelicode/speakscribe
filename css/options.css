@@ -1,4 +1,46 @@
+/* SpeakScribe Options - v3.0 (Teal/Cyan + Theme Support) */
 
+:root {
+  --ss-accent: #00d2ff;
+  --ss-accent-end: #3a7bd5;
+  --ss-gradient: linear-gradient(135deg, #00d2ff, #3a7bd5);
+  --ss-accent-rgb: 0, 210, 255;
+  --ss-pro-gradient: linear-gradient(135deg, #f7971e, #ffd200);
+}
+
+/* Dark theme (default) */
+body, body[data-theme="dark"] {
+  --ss-bg: #0a0a14;
+  --ss-surface: rgba(255, 255, 255, 0.03);
+  --ss-surface-hover: rgba(255, 255, 255, 0.05);
+  --ss-border: rgba(255, 255, 255, 0.06);
+  --ss-border-hover: rgba(255, 255, 255, 0.1);
+  --ss-text: #e0e0e0;
+  --ss-text-muted: #888;
+  --ss-text-dim: #666;
+  --ss-input-bg: rgba(255, 255, 255, 0.05);
+  --ss-input-border: rgba(255, 255, 255, 0.1);
+  --ss-toggle-bg: rgba(255, 255, 255, 0.1);
+  --ss-toggle-knob: #888;
+  --ss-save-bg: #0a0a14;
+}
+
+/* Light theme */
+body[data-theme="light"] {
+  --ss-bg: #f5f7fa;
+  --ss-surface: rgba(0, 0, 0, 0.02);
+  --ss-surface-hover: rgba(0, 0, 0, 0.04);
+  --ss-border: rgba(0, 0, 0, 0.08);
+  --ss-border-hover: rgba(0, 0, 0, 0.12);
+  --ss-text: #1a1a2e;
+  --ss-text-muted: #555;
+  --ss-text-dim: #888;
+  --ss-input-bg: rgba(0, 0, 0, 0.03);
+  --ss-input-border: rgba(0, 0, 0, 0.12);
+  --ss-toggle-bg: rgba(0, 0, 0, 0.1);
+  --ss-toggle-knob: #aaa;
+  --ss-save-bg: #f5f7fa;
+}
 
 * {
   margin: 0;
@@ -8,8 +50,8 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #0a0a14;
-  color: #e0e0e0;
+  background: var(--ss-bg);
+  color: var(--ss-text);
   line-height: 1.6;
 }
 
@@ -27,20 +69,20 @@ body {
 .options-header h1 {
   font-size: 28px;
   font-weight: 700;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: var(--ss-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 8px;
 }
 
 .header-subtitle {
-  color: #888;
+  color: var(--ss-text-muted);
   font-size: 14px;
 }
 
 .settings-section {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--ss-surface);
+  border: 1px solid var(--ss-border);
   border-radius: 16px;
   padding: 24px;
   margin-bottom: 24px;
@@ -49,7 +91,7 @@ body {
 .settings-section h2 {
   font-size: 16px;
   font-weight: 600;
-  color: #ccc;
+  color: var(--ss-text);
   margin-bottom: 16px;
   display: flex;
   align-items: center;
@@ -59,7 +101,7 @@ body {
 .settings-section h3 {
   font-size: 14px;
   font-weight: 600;
-  color: #aaa;
+  color: var(--ss-text-muted);
   margin-bottom: 10px;
 }
 
@@ -75,13 +117,13 @@ body {
   display: block;
   font-size: 13px;
   font-weight: 500;
-  color: #aaa;
+  color: var(--ss-text-muted);
   margin-bottom: 6px;
 }
 
 .setting-hint {
   font-size: 11px;
-  color: #666;
+  color: var(--ss-text-dim);
   margin-top: 4px;
 }
 
@@ -91,10 +133,10 @@ body {
 .setting-group textarea {
   width: 100%;
   padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--ss-input-bg);
+  border: 1px solid var(--ss-input-border);
   border-radius: 8px;
-  color: #e0e0e0;
+  color: var(--ss-text);
   font-size: 14px;
   font-family: inherit;
   transition: border-color 0.2s;
@@ -104,7 +146,7 @@ body {
 .setting-group input:focus,
 .setting-group textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--ss-accent);
 }
 
 .toggle-switch {
@@ -130,7 +172,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--ss-toggle-bg);
   border-radius: 12px;
   transition: 0.3s;
 }
@@ -142,24 +184,24 @@ body {
   width: 18px;
   left: 3px;
   bottom: 3px;
-  background: #888;
+  background: var(--ss-toggle-knob);
   border-radius: 50%;
   transition: 0.3s;
 }
 
 .toggle-switch input:checked + .toggle-slider {
-  background: rgba(102, 126, 234, 0.4);
+  background: rgba(0, 210, 255, 0.4);
 }
 
 .toggle-switch input:checked + .toggle-slider::before {
   transform: translateX(20px);
-  background: #667eea;
+  background: #00d2ff;
 }
 
 .toggle-label {
   display: inline-block;
   font-size: 14px;
-  color: #ccc;
+  color: var(--ss-text);
   margin-left: 10px;
   vertical-align: middle;
   cursor: pointer;
@@ -177,16 +219,16 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: var(--ss-gradient);
   color: white;
 }
 
 .btn-primary:hover {
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 210, 255, 0.3);
 }
 
 .btn-success {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: var(--ss-gradient);
   color: white;
   padding: 12px 32px;
   font-size: 14px;
@@ -194,7 +236,7 @@ body {
 }
 
 .btn-success:hover {
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 210, 255, 0.3);
 }
 
 .btn-donate {
@@ -206,15 +248,15 @@ body {
   font-size: 14px;
   font-weight: 600;
   text-decoration: none;
-  color: #ccc;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--ss-text);
+  background: var(--ss-surface-hover);
+  border: 1px solid var(--ss-border-hover);
   transition: all 0.2s;
 }
 
 .btn-donate:hover {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: var(--ss-accent);
+  color: var(--ss-accent);
 }
 
 .commands-container {
@@ -229,15 +271,15 @@ body {
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: rgba(102, 126, 234, 0.12);
-  border: 1px solid rgba(102, 126, 234, 0.25);
+  background: rgba(0, 210, 255, 0.12);
+  border: 1px solid rgba(0, 210, 255, 0.25);
   border-radius: 8px;
   font-size: 12px;
-  color: #ccc;
+  color: var(--ss-text);
 }
 
 .command-tag .command-text {
-  color: #667eea;
+  color: #00d2ff;
   font-weight: 500;
 }
 
@@ -245,7 +287,7 @@ body {
   background: none;
   border: none;
   cursor: pointer;
-  color: #555;
+  color: var(--ss-text-dim);
   font-size: 11px;
   padding: 2px 4px;
   border-radius: 4px;
@@ -266,10 +308,10 @@ body {
 .command-input {
   flex: 1;
   padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--ss-input-bg);
+  border: 1px solid var(--ss-input-border);
   border-radius: 8px;
-  color: #e0e0e0;
+  color: var(--ss-text);
   font-size: 14px;
   font-family: inherit;
   transition: border-color 0.2s;
@@ -277,7 +319,7 @@ body {
 
 .command-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--ss-accent);
 }
 
 .site-settings-container {
@@ -289,14 +331,14 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--ss-surface);
+  border: 1px solid var(--ss-border);
   border-radius: 8px;
   margin-bottom: 8px;
 }
 
 .site-rule-tag .rule-text {
-  color: #667eea;
+  color: #00d2ff;
   font-weight: 500;
   font-size: 13px;
 }
@@ -305,7 +347,7 @@ body {
   background: none;
   border: none;
   cursor: pointer;
-  color: #555;
+  color: var(--ss-text-dim);
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 4px;
@@ -326,10 +368,10 @@ body {
 .site-input {
   flex: 1;
   padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--ss-input-bg);
+  border: 1px solid var(--ss-input-border);
   border-radius: 8px;
-  color: #e0e0e0;
+  color: var(--ss-text);
   font-size: 14px;
   font-family: inherit;
   transition: border-color 0.2s;
@@ -337,16 +379,16 @@ body {
 
 .site-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--ss-accent);
 }
 
 .site-select {
   flex: 1;
   padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--ss-input-bg);
+  border: 1px solid var(--ss-input-border);
   border-radius: 8px;
-  color: #e0e0e0;
+  color: var(--ss-text);
   font-size: 14px;
   font-family: inherit;
   transition: border-color 0.2s;
@@ -354,7 +396,7 @@ body {
 
 .site-select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--ss-accent);
 }
 
 .vocab-container {
@@ -369,11 +411,11 @@ body {
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  background: rgba(102, 126, 234, 0.15);
-  border: 1px solid rgba(102, 126, 234, 0.3);
+  background: rgba(0, 210, 255, 0.15);
+  border: 1px solid rgba(0, 210, 255, 0.3);
   border-radius: 6px;
   font-size: 12px;
-  color: #667eea;
+  color: #00d2ff;
 }
 
 .vocab-tag .vocab-text {
@@ -384,7 +426,7 @@ body {
   background: none;
   border: none;
   cursor: pointer;
-  color: #667eea;
+  color: #00d2ff;
   opacity: 0.6;
   font-size: 11px;
   padding: 0;
@@ -404,10 +446,10 @@ body {
 .vocab-input {
   flex: 1;
   padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--ss-input-bg);
+  border: 1px solid var(--ss-input-border);
   border-radius: 8px;
-  color: #e0e0e0;
+  color: var(--ss-text);
   font-size: 14px;
   font-family: inherit;
   transition: border-color 0.2s;
@@ -415,14 +457,14 @@ body {
 
 .vocab-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--ss-accent);
 }
 
 .donate-section {
   text-align: center;
   padding: 32px 24px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.08));
-  border-color: rgba(102, 126, 234, 0.15);
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.08), rgba(58, 123, 213, 0.08));
+  border-color: rgba(0, 210, 255, 0.15);
 }
 
 .donate-section h2 {
@@ -431,7 +473,7 @@ body {
 }
 
 .donate-section p {
-  color: #888;
+  color: var(--ss-text-muted);
   font-size: 14px;
   margin-bottom: 20px;
   max-width: 500px;
@@ -454,8 +496,8 @@ body {
   padding: 16px 0;
   position: sticky;
   bottom: 0;
-  background: #0a0a14;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--ss-save-bg);
+  border-top: 1px solid var(--ss-border);
   margin-top: 16px;
   padding-bottom: 24px;
 }
@@ -472,16 +514,16 @@ body {
   text-align: center;
   padding: 12px 0;
   font-size: 11px;
-  color: #666;
+  color: var(--ss-text-dim);
 }
 
 .attribution a {
-  color: #888;
+  color: var(--ss-text-muted);
   text-decoration: none;
 }
 
 .attribution a:hover {
-  color: #667eea;
+  color: var(--ss-accent);
   text-decoration: underline;
 }
 
@@ -499,8 +541,8 @@ body {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #888;
+  background: var(--ss-surface-hover);
+  color: var(--ss-text-muted);
 }
 
 .options-license-badge.pro {
@@ -522,7 +564,7 @@ body {
 
 .upgrade-msg {
   font-size: 13px;
-  color: #ccc;
+  color: var(--ss-text);
 }
 
 .options-upgrade-btn {
@@ -531,7 +573,7 @@ body {
   font-weight: 700;
   border: none;
   border-radius: 4px;
-  background: linear-gradient(135deg, #f7971e, #ffd200);
+  background: var(--ss-pro-gradient);
   color: #1a1a2e;
   cursor: pointer;
   transition: opacity 0.2s;
@@ -543,7 +585,7 @@ body {
 
 .pro-tag {
   display: inline-block;
-  background: linear-gradient(135deg, #f7971e, #ffd200);
+  background: var(--ss-pro-gradient);
   color: #1a1a2e;
   padding: 2px 8px;
   border-radius: 4px;

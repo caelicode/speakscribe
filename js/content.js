@@ -498,6 +498,11 @@
   let meetingModeActive = false;
   let bubbleClearTimer = null;
 
+  // Free-tier session timer (content script side)
+  let csSessionLimitMs = 0;
+  let csSessionElapsed = 0;
+  let csSessionTimer = null;
+
   function createRecognition(settings) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
@@ -678,6 +683,32 @@
     isListening = true;
     showStatus('Starting speech recognition...');
 
+    // Start free-tier session timer if applicable
+    try {
+      const limitResp = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: 'GET_SESSION_LIMIT' }, (r) => {
+          resolve(r || { limitMs: 0 });
+        });
+      });
+      csSessionLimitMs = limitResp.limitMs || 0;
+    } catch (e) {
+      csSessionLimitMs = 0;
+    }
+    if (csSessionLimitMs > 0) {
+      csSessionElapsed = 0;
+      csSessionTimer = setInterval(() => {
+        csSessionElapsed += 1000;
+        if (csSessionElapsed >= csSessionLimitMs) {
+          clearInterval(csSessionTimer);
+          csSessionTimer = null;
+          // Auto-stop: session limit reached
+          console.log('[SpeakScribe] Free session limit reached, stopping.');
+          stopRecognition();
+          showStatus('Session limit reached (5 min). Upgrade for unlimited.');
+        }
+      }, 1000);
+    }
+
     try {
       recognition.start();
       console.log('[SpeakScribe] recognition.start() called successfully');
@@ -705,6 +736,12 @@
     lastInjectedFinalText = '';
     capsMode = false;
     clearTimeout(restartTimer);
+    // Clear free-tier session timer
+    if (csSessionTimer) {
+      clearInterval(csSessionTimer);
+      csSessionTimer = null;
+    }
+    csSessionElapsed = 0;
     if (recognition) { try { recognition.stop(); } catch (e) {} }
     releaseMicStream();
     updateFabState(false);
@@ -759,7 +796,7 @@
     fab = document.createElement('button');
     fab.id = 'speakscribe-fab';
     const fabIcon = document.createElement('img');
-    fabIcon.src = chrome.runtime.getURL('icons/ui/mic-32.png');
+    fabIcon.src = chrome.runtime.getURL('icons/ui/mic-32.svg');
     fabIcon.alt = 'Mic';
     fabIcon.className = 'ss-fab-icon';
     fabIcon.id = 'speakscribe-fab-icon';
@@ -777,21 +814,21 @@
     actionsRow = document.createElement('div');
     actionsRow.id = 'speakscribe-actions';
 
-    const copyBtn = makeActionBtn('icons/ui/copy-24.png', 'Copy transcript', () => {
+    const copyBtn = makeActionBtn('icons/ui/copy-24.svg', 'Copy transcript', () => {
       if (fullTranscript.trim()) {
         copyToClipboard(fullTranscript).then((ok) => {
           if (ok) {
             copyBtn.textContent = '\u2713';
-            setTimeout(() => { copyBtn.innerHTML = ''; const img = document.createElement('img'); img.src = chrome.runtime.getURL('icons/ui/copy-24.png'); img.alt = 'Copy'; img.className = 'ss-action-icon'; copyBtn.appendChild(img); }, 1200);
+            setTimeout(() => { copyBtn.innerHTML = ''; const img = document.createElement('img'); img.src = chrome.runtime.getURL('icons/ui/copy-24.svg'); img.alt = 'Copy'; img.className = 'ss-action-icon'; copyBtn.appendChild(img); }, 1200);
           } else {
             copyBtn.textContent = '\u2717';
-            setTimeout(() => { copyBtn.innerHTML = ''; const img = document.createElement('img'); img.src = chrome.runtime.getURL('icons/ui/copy-24.png'); img.alt = 'Copy'; img.className = 'ss-action-icon'; copyBtn.appendChild(img); }, 1200);
+            setTimeout(() => { copyBtn.innerHTML = ''; const img = document.createElement('img'); img.src = chrome.runtime.getURL('icons/ui/copy-24.svg'); img.alt = 'Copy'; img.className = 'ss-action-icon'; copyBtn.appendChild(img); }, 1200);
           }
         });
       }
     });
 
-    const clearBtn = makeActionBtn('icons/ui/delete-24.png', 'Clear transcript', () => {
+    const clearBtn = makeActionBtn('icons/ui/delete-24.svg', 'Clear transcript', () => {
       fullTranscript = '';
       transcriptLines = [];
       lastInjectedFinalText = '';
@@ -800,7 +837,7 @@
       chrome.runtime.sendMessage({ type: 'CLEAR_TRANSCRIPT' }).catch(() => {});
     });
 
-    const overlayBtn = makeActionBtn('icons/ui/overlay-24.png', 'Open overlay', async () => {
+    const overlayBtn = makeActionBtn('icons/ui/overlay-24.svg', 'Open overlay', async () => {
       const allowed = await checkLicenseFeature('floatingOverlay');
       if (!allowed) {
         showUpgradePrompt('Floating overlay');
@@ -809,7 +846,7 @@
       chrome.runtime.sendMessage({ type: 'OPEN_FLOATING' }).catch(() => {});
     });
 
-    const hideBtn = makeActionBtn('icons/ui/delete-24.png', 'Hide SpeakScribe', () => {
+    const hideBtn = makeActionBtn('icons/ui/delete-24.svg', 'Hide SpeakScribe', () => {
       if (isListening) {
         if (!confirm('Recording is active. Hide SpeakScribe anyway?')) return;
       }
