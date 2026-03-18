@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.4.0] - 2026-03-18
+
+### Features
+
+- rename engine labels from technical to user-friendly names
+
+### Bug Fixes
+
+- replace emojis with SVG icons, fix text injection into active fields
+- overlay button not opening floating window
+
+### Other Changes
+
+- Merge pull request #8 from caelicode/feature/v2.2.0-redesign-and-session-limit
+
+
 ## [2.3.0] - 2026-03-16
 
 ### Features
