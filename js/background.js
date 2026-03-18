@@ -40,11 +40,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       break;
 
     case 'OPEN_FLOATING':
-      openFloatingWindow().catch(err => {
+      openFloatingWindow().then(() => {
+        sendResponse({ success: true });
+      }).catch(err => {
         console.error('Error opening floating window:', err);
+        sendResponse({ success: false, error: err.message });
       });
-      sendResponse({ success: true });
-      break;
+      return true;
 
     case 'CLOSE_FLOATING':
       closeFloatingWindow();
@@ -275,13 +277,30 @@ async function openFloatingWindow() {
 
 async function createFloatingWindow() {
   try {
+    // Position the floating window at the right edge of the current display
+    let left = 100;
+    let top = 100;
+    try {
+      const currentWindow = await chrome.windows.getCurrent();
+      if (currentWindow && currentWindow.width && currentWindow.left !== undefined) {
+        // Place to the right of the current window, or at right edge of screen
+        left = Math.max(0, (currentWindow.left + currentWindow.width) - 440);
+        top = currentWindow.top + 50;
+      }
+    } catch (e) {
+      // Fall back to reasonable defaults
+      left = 100;
+      top = 100;
+    }
+
     const windowInfo = await chrome.windows.create({
-      url: 'pages/floating.html',
+      url: chrome.runtime.getURL('pages/floating.html'),
       type: 'popup',
       width: 420,
       height: 600,
-      left: 1400,
-      top: 100
+      left: left,
+      top: top,
+      focused: true
     });
 
     floatingWindowId = windowInfo.id;

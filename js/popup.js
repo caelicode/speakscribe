@@ -254,7 +254,7 @@ function setupEventListeners() {
       if (selectedEngine === currentEngine) return;
 
       if (selectedEngine === 'whisper') {
-        const allowed = await checkProFeature('whisperEngine', 'Whisper AI');
+        const allowed = await checkProFeature('whisperEngine', 'Enhanced AI');
         if (!allowed) return;
       }
 
@@ -268,7 +268,7 @@ function setupEventListeners() {
       await chrome.storage.local.set({ settings });
 
       if (currentEngine === 'whisper') {
-        statusText.textContent = 'Whisper AI: coming in v2.0 (uses Web Speech for now)';
+        statusText.textContent = 'Enhanced AI: coming soon (using Standard engine for now)';
       } else {
         statusText.textContent = isRecording ? 'Listening...' : 'Ready to transcribe';
       }
@@ -307,8 +307,8 @@ function setupEventListeners() {
   });
 
 
-  overlayBtn.addEventListener('click', () => {
-    sendToBackground({ type: 'OPEN_FLOATING' });
+  overlayBtn.addEventListener('click', async () => {
+    await sendToBackground({ type: 'OPEN_FLOATING' });
   });
 
 
@@ -634,7 +634,7 @@ async function initLicenseUI() {
     const whisperBtn = document.getElementById('whisperBtn');
     if (whisperBtn) {
       whisperBtn.classList.add('pro-locked');
-      whisperBtn.title = 'Whisper AI requires SpeakScribe Pro';
+      whisperBtn.title = 'Enhanced AI requires SpeakScribe Pro';
     }
 
     if (meetingBtn) {
