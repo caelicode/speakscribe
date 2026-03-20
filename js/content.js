@@ -479,6 +479,11 @@
   let csSessionElapsed = 0;
   let csSessionTimer = null;
 
+  // Free-tier session timer (content script side)
+  let csSessionLimitMs = 0;
+  let csSessionElapsed = 0;
+  let csSessionTimer = null;
+
   function createRecognition(settings) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
