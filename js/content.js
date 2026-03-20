@@ -1403,7 +1403,11 @@
         if (usingDeepgram) {
           usingDeepgram = false;
           updateFabState(false);
-          showError('Enhanced error: ' + (message.error || 'unknown'));
+          if (message.error === 'MIC_PERMISSION_NEEDED') {
+            showError('Enhanced mode needs mic access. Click the SpeakScribe popup icon and press record once to grant permission.');
+          } else {
+            showError('Enhanced error: ' + (message.error || 'unknown'));
+          }
         }
         sendResponse({ received: true });
         break;

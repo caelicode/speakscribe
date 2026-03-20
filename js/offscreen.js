@@ -295,10 +295,17 @@ async function startDeepgram({ proxyUrl, licenseKey, language, diarize }) {
 
         dgState.ws = ws;
 
-        // 2. Get mic access (offscreen document has full getUserMedia support)
-        dgState.mediaStream = await navigator.mediaDevices.getUserMedia({
-            audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true },
-        });
+        // 2. Get mic access (offscreen document shares extension origin permissions).
+        // If the extension origin hasn't been granted mic access yet (via the popup),
+        // this will fail with "Permission dismissed". Send a specific error so the
+        // UI can tell the user to grant permission via the popup first.
+        try {
+            dgState.mediaStream = await navigator.mediaDevices.getUserMedia({
+                audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true },
+            });
+        } catch (micErr) {
+            throw new Error('MIC_PERMISSION_NEEDED');
+        }
 
         // 3. Set up audio pipeline (PCM16 at 16kHz)
         dgState.audioContext = new AudioContext({ sampleRate: 16000 });
@@ -380,7 +387,9 @@ function _handleDgTranscript(data) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('[Offscreen] Received message:', message.type);
 
-    if (message.type === 'START_DEEPGRAM') {
+    // Only handle _INTERNAL_ prefixed messages from the background service worker
+    // to avoid duplicates (chrome.runtime.sendMessage broadcasts to all contexts).
+    if (message.type === '_INTERNAL_START_DEEPGRAM') {
         startDeepgram(message).catch(err => {
             console.error('[Offscreen] Error in START_DEEPGRAM:', err);
         });
@@ -388,7 +397,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
-    if (message.type === 'STOP_DEEPGRAM') {
+    if (message.type === '_INTERNAL_STOP_DEEPGRAM') {
         stopDeepgram();
         sendResponse({ status: 'stopped' });
         return true;

@@ -678,8 +678,10 @@ async function ensureOffscreenDocument() {
 
 async function startDeepgramCapture({ proxyUrl, licenseKey, language, diarize }) {
   await ensureOffscreenDocument();
+  // Use _INTERNAL_ prefix so offscreen only handles messages routed through
+  // the background, not duplicates from chrome.runtime.sendMessage broadcasts.
   chrome.runtime.sendMessage({
-    type: 'START_DEEPGRAM',
+    type: '_INTERNAL_START_DEEPGRAM',
     proxyUrl: proxyUrl || 'ws://localhost:3001',
     licenseKey: licenseKey || '',
     language: language || 'en-US',
@@ -689,7 +691,7 @@ async function startDeepgramCapture({ proxyUrl, licenseKey, language, diarize })
 
 async function stopDeepgramCapture() {
   if (offscreenCreated) {
-    chrome.runtime.sendMessage({ type: 'STOP_DEEPGRAM' }).catch(() => {});
+    chrome.runtime.sendMessage({ type: '_INTERNAL_STOP_DEEPGRAM' }).catch(() => {});
   }
 }
 
