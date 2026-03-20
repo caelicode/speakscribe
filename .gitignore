@@ -17,6 +17,7 @@ package-lock.json
 *.zip
 *.crx
 *.pem
+dist/
 
 # Whisper model files (large binaries, download at runtime)
 models/

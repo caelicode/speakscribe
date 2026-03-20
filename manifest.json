@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "SpeakScribe - Live Speech to Text",
   "version": "2.4.0",
-  "description": "Real-time speech-to-text with voice commands, offline Whisper AI, meeting transcription, and smart punctuation.",
+  "description": "Real-time speech-to-text with voice commands, meeting transcription, and smart punctuation.",
   "permissions": [
     "storage",
     "commands",
@@ -10,7 +10,7 @@
     "offscreen",
     "activeTab"
   ],
-  "host_permissions": [
+  "optional_host_permissions": [
     "<all_urls>"
   ],
   "background": {
@@ -60,6 +60,7 @@
       ],
       "js": [
         "js/license.js",
+        "js/punctuation.js",
         "js/content.js"
       ],
       "css": [
@@ -67,16 +68,13 @@
       ]
     }
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
   "web_accessible_resources": [
     {
       "resources": [
-        "pages/floating.html",
-        "pages/offscreen.html",
-        "pages/upgrade.html",
-        "css/*",
-        "js/*",
-        "icons/*",
-        "models/*"
+        "icons/ui/*"
       ],
       "matches": [
         "<all_urls>"

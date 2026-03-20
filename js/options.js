@@ -1,6 +1,5 @@
-const defaultEngineSelect = document.getElementById('defaultEngine');
+// Engine selector removed (only web-speech is supported)
 const languageSelect = document.getElementById('language');
-const whisperModelSizeSelect = document.getElementById('whisperModelSize');
 const smartPunctuationCheckbox = document.getElementById('smartPunctuation');
 const autoCapitalizeCheckbox = document.getElementById('autoCapitalize');
 const showTimestampsCheckbox = document.getElementById('showTimestamps');
@@ -57,13 +56,11 @@ function loadSettings() {
     const settings = data.settings || getDefaultSettings();
 
 
-    defaultEngineSelect.value = settings.defaultEngine || 'web-speech';
     languageSelect.value = settings.language || 'en-US';
-    whisperModelSizeSelect.value = settings.whisperModelSize || 'base';
     smartPunctuationCheckbox.checked = settings.smartPunctuation !== false;
     autoCapitalizeCheckbox.checked = settings.autoCapitalize !== false;
     showTimestampsCheckbox.checked = settings.showTimestamps || false;
-    continuousListeningCheckbox.checked = settings.continuousListening || false;
+    continuousListeningCheckbox.checked = settings.continuousListening !== false;
     showCommandPaletteCheckbox.checked = settings.showCommandPalette !== false;
     perSiteEnabledCheckbox.checked = settings.perSiteEnabled || false;
     autoOpenOverlayCheckbox.checked = settings.autoOpenOverlay !== false;
@@ -87,29 +84,31 @@ function loadSettings() {
 }
 
 function getDefaultSettings() {
+  // Use shared defaults if available, otherwise inline fallback
+  if (typeof SpeakScribeDefaults !== 'undefined') {
+    return { ...SpeakScribeDefaults };
+  }
   return {
-    defaultEngine: 'web-speech',
+    engine: 'web-speech',
     language: 'en-US',
-    whisperModelSize: 'base',
     smartPunctuation: true,
     autoCapitalize: true,
     showTimestamps: false,
-    continuousListening: false,
+    continuousListening: true,
     showCommandPalette: true,
     perSiteEnabled: false,
-    autoOpenOverlay: true,
+    autoOpenOverlay: false,
     meetingAutoTranscribe: false,
-    overlayOpacity: '0.9',
-    fontSize: 'medium',
+    overlayOpacity: 'opaque',
+    overlayFontSize: null,
     exportFormat: 'txt'
   };
 }
 
 function saveSettings() {
   const settings = {
-    defaultEngine: defaultEngineSelect.value,
+    engine: 'web-speech',
     language: languageSelect.value,
-    whisperModelSize: whisperModelSizeSelect.value,
     smartPunctuation: smartPunctuationCheckbox.checked,
     autoCapitalize: autoCapitalizeCheckbox.checked,
     showTimestamps: showTimestampsCheckbox.checked,

@@ -1,4 +1,6 @@
 import { SpeechEngine } from './speech-engine.js';
+// DeepgramEngine runs in the offscreen document (for reliable mic access).
+// The popup communicates via background messages: START_DEEPGRAM / STOP_DEEPGRAM.
 
 const recordBtn = document.getElementById('recordBtn');
 const statusText = document.getElementById('statusText');
@@ -17,7 +19,7 @@ const showWidgetBtn = document.getElementById('showWidgetBtn');
 const showWidgetBar = document.getElementById('showWidgetBar');
 const themeBtn = document.getElementById('themeBtn');
 
-let engine = null;
+let engine = null;           // SpeechEngine (Web Speech API)
 let isRecording = false;
 let currentEngine = 'web-speech';
 let fullTranscript = '';
@@ -205,7 +207,7 @@ function hideTimerDisplay() {
 function setupEventListeners() {
 
   recordBtn.addEventListener('click', async () => {
-    console.log('[SpeakScribe] Record button clicked, isRecording:', isRecording);
+    console.log('[SpeakScribe] Record button clicked, isRecording:', isRecording, 'engine:', currentEngine);
     isRecording = !isRecording;
 
     if (isRecording) {
@@ -217,17 +219,66 @@ function setupEventListeners() {
       statusText.textContent = 'Starting...';
       statusText.classList.add('active');
 
-      if (engineReady && engine && !useContentScript) {
-
+      if (currentEngine === 'deepgram') {
+        // Use Deepgram Enhanced engine via offscreen document
         try {
-          engine.start();
+          // Step 1: Check if mic permission is already granted for this extension.
+          // The offscreen document cannot show a permission prompt, so we need
+          // to ensure permission exists before starting.
+          statusText.textContent = 'Checking mic access...';
+          let micGranted = false;
+          try {
+            const permStatus = await navigator.permissions.query({ name: 'microphone' });
+            micGranted = permStatus.state === 'granted';
+          } catch (e) {
+            // permissions.query may not work in all popup contexts, try getUserMedia
+            try {
+              const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              tempStream.getTracks().forEach(t => t.stop());
+              micGranted = true;
+            } catch (micErr) {
+              micGranted = false;
+            }
+          }
+
+          if (!micGranted) {
+            // Open a dedicated page in a new tab to request mic permission.
+            // The popup context cannot show permission prompts in many Chrome versions.
+            statusText.textContent = 'Opening mic permission page...';
+            statusText.classList.remove('active');
+            isRecording = false;
+            recordBtn.classList.remove('recording');
+            chrome.tabs.create({ url: chrome.runtime.getURL('pages/mic-permission.html') });
+            return;
+          }
+
+          // Step 2: Mic is granted, send start command to offscreen document
+          const dgSettings = (await chrome.storage.local.get('settings')).settings || {};
+          const licenseData = await sendToBackground({ type: 'GET_LICENSE_INFO' });
+          const result = await sendToBackground({
+            type: 'START_DEEPGRAM',
+            proxyUrl: dgSettings.deepgramProxyUrl || 'ws://localhost:3001',
+            licenseKey: licenseData?._rawLicenseKey || '',
+            language: dgSettings.language || 'en-US',
+            diarize: dgSettings.diarize || false,
+          });
+          if (result && !result.success) {
+            throw new Error(result.error || 'Failed to start Enhanced engine');
+          }
+          statusText.textContent = 'Enhanced: Connecting...';
         } catch (err) {
-          console.error('[SpeakScribe] Direct start failed, trying content script:', err);
-          useContentScript = true;
-          startViaContentScript();
+          console.error('[SpeakScribe] Deepgram start failed:', err);
+          statusText.textContent = 'Enhanced engine error: ' + (err.message || 'connection failed');
+          statusText.classList.remove('active');
+          isRecording = false;
+          recordBtn.classList.remove('recording');
+          return;
         }
       } else {
-
+        // Always use content script for Standard engine. SpeechRecognition
+        // is unreliable in the popup's chrome-extension:// context across
+        // Chrome versions. The content script runs in the page context
+        // where it works consistently. Results are sent back via messages.
         startViaContentScript();
       }
     } else {
@@ -236,10 +287,12 @@ function setupEventListeners() {
       statusText.textContent = 'Ready to transcribe';
       statusText.classList.remove('active');
 
+      if (currentEngine === 'deepgram') {
+        sendToBackground({ type: 'STOP_DEEPGRAM' }).catch(() => {});
+      }
       if (engine && engine.isListening) {
         engine.stop();
       }
-
 
       sendToActiveTab({ type: 'STOP_RECOGNITION' });
     }
@@ -253,25 +306,33 @@ function setupEventListeners() {
       const selectedEngine = btn.dataset.engine;
       if (selectedEngine === currentEngine) return;
 
-      if (selectedEngine === 'whisper') {
-        const allowed = await checkProFeature('whisperEngine', 'Enhanced AI');
+      // Deepgram requires Pro license
+      if (selectedEngine === 'deepgram') {
+        const allowed = await checkProFeature('deepgramEngine', 'Enhanced transcription');
         if (!allowed) return;
+      }
+
+      // If currently recording, stop first
+      if (isRecording) {
+        isRecording = false;
+        recordBtn.classList.remove('recording');
+        if (engine && engine.isListening) engine.stop();
+        if (currentEngine === 'deepgram') {
+          sendToBackground({ type: 'STOP_DEEPGRAM' }).catch(() => {});
+        }
+        sendToActiveTab({ type: 'STOP_RECOGNITION' }).catch(() => {});
+        await sendToBackground({ type: 'SET_RECORDING', value: false });
       }
 
       currentEngine = selectedEngine;
       updateEngineUI(currentEngine);
-
 
       const data = await chrome.storage.local.get('settings');
       const settings = data.settings || {};
       settings.engine = currentEngine;
       await chrome.storage.local.set({ settings });
 
-      if (currentEngine === 'whisper') {
-        statusText.textContent = 'Enhanced AI: coming soon (using Standard engine for now)';
-      } else {
-        statusText.textContent = isRecording ? 'Listening...' : 'Ready to transcribe';
-      }
+      statusText.textContent = isRecording ? 'Listening...' : 'Ready to transcribe';
     });
   });
 
@@ -415,7 +476,25 @@ function setupEventListeners() {
       }
     }
 
+    // TRANSCRIPT_UPDATED: full transcript from background (via broadcastTranscript)
+    // TRANSCRIPT_BROADCAST/CONTENT_TRANSCRIPT: individual updates from content script
+    if (message.type === 'TRANSCRIPT_UPDATED') {
+      if (message.currentTranscript) {
+        fullTranscript = message.currentTranscript;
+        updateTranscriptDisplay(fullTranscript, '');
+      }
+    }
+
     if (message.type === 'TRANSCRIPT_BROADCAST' || message.type === 'CONTENT_TRANSCRIPT') {
+      if (message.isFinal && message.text) {
+        fullTranscript += (fullTranscript ? ' ' : '') + message.text;
+        updateTranscriptDisplay(fullTranscript, '');
+      } else if (!message.isFinal && message.text) {
+        updateTranscriptDisplay(fullTranscript, message.text);
+      }
+    }
+
+    if (message.type === 'TRANSCRIPT_UPDATE') {
       if (message.isFinal && message.text) {
         fullTranscript += (fullTranscript ? ' ' : '') + message.text;
         updateTranscriptDisplay(fullTranscript, '');
@@ -431,6 +510,39 @@ function setupEventListeners() {
       } else if (!message.isFinal && message.text) {
         updateTranscriptDisplay(fullTranscript, message.text);
       }
+    }
+
+    // Deepgram Enhanced engine messages from offscreen document
+    if (message.type === 'DEEPGRAM_TRANSCRIPT') {
+      if (message.isFinal && message.text) {
+        fullTranscript += (fullTranscript ? ' ' : '') + message.text;
+        updateTranscriptDisplay(fullTranscript, '');
+      } else if (!message.isFinal && message.text) {
+        updateTranscriptDisplay(fullTranscript, message.text);
+      }
+    }
+
+    if (message.type === 'DEEPGRAM_STARTED') {
+      isRecording = true;
+      recordBtn.classList.add('recording');
+      statusText.textContent = 'Listening (Enhanced)...';
+      statusText.classList.add('active');
+    }
+
+    if (message.type === 'DEEPGRAM_STOPPED') {
+      isRecording = false;
+      recordBtn.classList.remove('recording');
+      statusText.textContent = message.reason === 'connection_lost'
+        ? 'Enhanced: Connection lost'
+        : 'Ready to transcribe';
+      statusText.classList.remove('active');
+    }
+
+    if (message.type === 'DEEPGRAM_ERROR') {
+      isRecording = false;
+      recordBtn.classList.remove('recording');
+      statusText.textContent = 'Enhanced error: ' + (message.error || 'unknown');
+      statusText.classList.remove('active');
     }
   });
 
@@ -631,10 +743,10 @@ async function initLicenseUI() {
     licenseLabel.textContent = 'Free (5 min/session)';
     upgradeBtn.style.display = 'inline-block';
 
-    const whisperBtn = document.getElementById('whisperBtn');
-    if (whisperBtn) {
-      whisperBtn.classList.add('pro-locked');
-      whisperBtn.title = 'Enhanced AI requires SpeakScribe Pro';
+    const deepgramBtn = document.getElementById('deepgramBtn');
+    if (deepgramBtn) {
+      deepgramBtn.classList.add('pro-locked');
+      deepgramBtn.title = 'Enhanced transcription requires SpeakScribe Pro';
     }
 
     if (meetingBtn) {

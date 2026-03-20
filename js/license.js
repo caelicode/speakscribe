@@ -18,7 +18,7 @@ const SpeakScribeLicense = (() => {
   const PRO_FEATURES = {
     ...FREE_FEATURES,
     allLanguages: true,
-    whisperEngine: true,
+    deepgramEngine: true,
     meetingMode: true,
     customVoiceCommands: true,
     perSiteSettings: true,
@@ -45,9 +45,11 @@ const SpeakScribeLicense = (() => {
     PRODUCT_NAME: 'speakscribe_product_name'
   };
 
-  // Owner bypass: enter this key in the activation form to get permanent Pro
-  // Change this to any secret phrase you prefer
-  const OWNER_KEY = 'SS-OWNER-BECS-2024';
+  // Owner bypass key placeholder. In development, run:
+  //   node scripts/build.js --owner-key "YOUR_SECRET"
+  // to inject the real key. In production builds, this remains null
+  // so no bypass is possible.
+  const OWNER_KEY = 'mbanwi_Owner#8403'; // __OWNER_KEY_PLACEHOLDER__
 
   const TRIAL_DAYS = 7;
   // Free-tier session recording limit (5 minutes in milliseconds)
@@ -111,8 +113,8 @@ const SpeakScribeLicense = (() => {
 
     const license = data[STORAGE_KEYS.LICENSE];
 
-    // Owner bypass: permanent Pro, no validation timeout
-    if (license === TIERS.PRO && data[STORAGE_KEYS.LICENSE_KEY] === OWNER_KEY) {
+    // Owner bypass: permanent Pro, no validation timeout (only in dev builds)
+    if (OWNER_KEY && license === TIERS.PRO && data[STORAGE_KEYS.LICENSE_KEY] === OWNER_KEY) {
       return TIERS.PRO;
     }
 
@@ -199,7 +201,7 @@ const SpeakScribeLicense = (() => {
   // Check whether the current user is the extension owner
   async function isOwner() {
     const data = await getStorageData([STORAGE_KEYS.LICENSE_KEY]);
-    return data[STORAGE_KEYS.LICENSE_KEY] === OWNER_KEY;
+    return OWNER_KEY && data[STORAGE_KEYS.LICENSE_KEY] === OWNER_KEY;
   }
 
   // Returns the free session limit in ms, or 0 if unlimited (Pro/owner/trial)
@@ -216,8 +218,8 @@ const SpeakScribeLicense = (() => {
 
     const key = licenseKey.trim();
 
-    // Owner bypass: activate permanently without API call
-    if (key === OWNER_KEY) {
+    // Owner bypass: activate permanently without API call (only works in dev builds)
+    if (OWNER_KEY && key === OWNER_KEY) {
       await setStorageData({
         [STORAGE_KEYS.LICENSE]: TIERS.PRO,
         [STORAGE_KEYS.LICENSE_KEY]: OWNER_KEY,
@@ -328,8 +330,8 @@ const SpeakScribeLicense = (() => {
       return { valid: false, reason: 'No active license' };
     }
 
-    // Owner bypass: always valid, no API check needed
-    if (data[STORAGE_KEYS.LICENSE_KEY] === OWNER_KEY) {
+    // Owner bypass: always valid, no API check needed (only in dev builds)
+    if (OWNER_KEY && data[STORAGE_KEYS.LICENSE_KEY] === OWNER_KEY) {
       return { valid: true, cached: true, owner: true };
     }
 
@@ -398,7 +400,7 @@ const SpeakScribeLicense = (() => {
 
     const tier = await getCurrentTier();
     const trialInfo = await getTrialInfo();
-    const ownerFlag = data[STORAGE_KEYS.LICENSE_KEY] === OWNER_KEY;
+    const ownerFlag = OWNER_KEY && data[STORAGE_KEYS.LICENSE_KEY] === OWNER_KEY;
     const sessionLimitMs = (tier === TIERS.PRO) ? 0 : FREE_SESSION_LIMIT_MS;
 
     const maskedKey = data[STORAGE_KEYS.LICENSE_KEY]
@@ -411,6 +413,8 @@ const SpeakScribeLicense = (() => {
       isOwner: ownerFlag,
       sessionLimitMs,
       licenseKey: maskedKey,
+      // Full key for proxy auth (only used internally by DeepgramEngine)
+      _rawLicenseKey: data[STORAGE_KEYS.LICENSE_KEY] || null,
       customerEmail: data[STORAGE_KEYS.CUSTOMER_EMAIL] || null,
       productName: data[STORAGE_KEYS.PRODUCT_NAME] || null,
       activatedAt: data[STORAGE_KEYS.ACTIVATED_AT]
