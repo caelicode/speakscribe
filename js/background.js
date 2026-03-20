@@ -194,6 +194,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       sendResponse({ received: true });
       break;
 
+    case 'OPEN_MIC_PERMISSION':
+      chrome.tabs.create({ url: chrome.runtime.getURL('pages/mic-permission.html') });
+      sendResponse({ received: true });
+      break;
+
+    case 'MIC_PERMISSION_GRANTED':
+      console.log('Mic permission granted via permission page');
+      sendResponse({ received: true });
+      break;
+
     case 'SET_SITE_SETTINGS':
       setSiteSettings(request.hostname, request.settings).then(() => {
         sendResponse({ success: true });

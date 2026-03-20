@@ -1404,7 +1404,8 @@
           usingDeepgram = false;
           updateFabState(false);
           if (message.error === 'MIC_PERMISSION_NEEDED') {
-            showError('Enhanced mode needs mic access. Click the SpeakScribe popup icon and press record once to grant permission.');
+            showError('Enhanced mode needs mic access. Opening permission page...');
+            chrome.runtime.sendMessage({ type: 'OPEN_MIC_PERMISSION' }).catch(() => {});
           } else {
             showError('Enhanced error: ' + (message.error || 'unknown'));
           }

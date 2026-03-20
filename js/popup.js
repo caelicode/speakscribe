@@ -222,19 +222,37 @@ function setupEventListeners() {
       if (currentEngine === 'deepgram') {
         // Use Deepgram Enhanced engine via offscreen document
         try {
-          // Step 1: Request mic permission from the popup context first.
-          // The offscreen document shares the extension's origin but cannot
-          // show a permission prompt. The popup CAN show the prompt.
-          // Once granted here, the offscreen document can use getUserMedia.
-          statusText.textContent = 'Requesting mic access...';
+          // Step 1: Check if mic permission is already granted for this extension.
+          // The offscreen document cannot show a permission prompt, so we need
+          // to ensure permission exists before starting.
+          statusText.textContent = 'Checking mic access...';
+          let micGranted = false;
           try {
-            const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            tempStream.getTracks().forEach(t => t.stop()); // Release immediately
-          } catch (micErr) {
-            throw new Error('Microphone access denied. Allow mic access and try again.');
+            const permStatus = await navigator.permissions.query({ name: 'microphone' });
+            micGranted = permStatus.state === 'granted';
+          } catch (e) {
+            // permissions.query may not work in all popup contexts, try getUserMedia
+            try {
+              const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              tempStream.getTracks().forEach(t => t.stop());
+              micGranted = true;
+            } catch (micErr) {
+              micGranted = false;
+            }
           }
 
-          // Step 2: Send start command to offscreen document via background
+          if (!micGranted) {
+            // Open a dedicated page in a new tab to request mic permission.
+            // The popup context cannot show permission prompts in many Chrome versions.
+            statusText.textContent = 'Opening mic permission page...';
+            statusText.classList.remove('active');
+            isRecording = false;
+            recordBtn.classList.remove('recording');
+            chrome.tabs.create({ url: chrome.runtime.getURL('pages/mic-permission.html') });
+            return;
+          }
+
+          // Step 2: Mic is granted, send start command to offscreen document
           const dgSettings = (await chrome.storage.local.get('settings')).settings || {};
           const licenseData = await sendToBackground({ type: 'GET_LICENSE_INFO' });
           const result = await sendToBackground({
