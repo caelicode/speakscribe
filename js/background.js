@@ -1,4 +1,5 @@
 importScripts('license.js');
+importScripts('defaults.js');
 
 let floatingWindowId = null;
 let isRecording = false;
@@ -7,6 +8,26 @@ let transcriptLines = [];
 let isMeetingMode = false;
 let meetingTabId = null;
 let offscreenCreated = false;
+
+// --- Fix #5: Restore transcript state from session storage on SW restart ---
+chrome.storage.session.get(['transcriptLines', 'currentTranscript', 'isRecording']).then((data) => {
+  if (data.transcriptLines) transcriptLines = data.transcriptLines;
+  if (data.currentTranscript) currentTranscript = data.currentTranscript;
+  if (data.isRecording) isRecording = data.isRecording;
+}).catch(() => {});
+
+// Debounced persistence of transcript state to session storage
+let _persistTimer = null;
+function persistTranscriptState() {
+  clearTimeout(_persistTimer);
+  _persistTimer = setTimeout(() => {
+    chrome.storage.session.set({
+      transcriptLines,
+      currentTranscript,
+      isRecording
+    }).catch(() => {});
+  }, 500);
+}
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   switch (request.type) {
@@ -24,6 +45,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case 'SET_RECORDING':
       isRecording = request.value !== undefined ? request.value : request.status;
       broadcastState();
+      persistTranscriptState();
       sendResponse({ success: true });
       break;
 
@@ -36,15 +58,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       currentTranscript = '';
       transcriptLines = [];
       broadcastTranscript();
+      persistTranscriptState();
       sendResponse({ success: true });
       break;
 
     case 'OPEN_FLOATING':
-      openFloatingWindow().catch(err => {
+      openFloatingWindow().then(() => {
+        sendResponse({ success: true });
+      }).catch(err => {
         console.error('Error opening floating window:', err);
+        sendResponse({ success: false, error: err.message });
       });
-      sendResponse({ success: true });
-      break;
+      return true;
 
     case 'CLOSE_FLOATING':
       closeFloatingWindow();
@@ -75,6 +100,99 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: false, error: err.message });
       });
       return true;
+
+    case 'START_DEEPGRAM':
+      startDeepgramCapture(request).then(() => {
+        sendResponse({ success: true });
+      }).catch(err => {
+        console.error('Error starting Deepgram:', err);
+        sendResponse({ success: false, error: err.message });
+      });
+      return true;
+
+    case 'STOP_DEEPGRAM':
+      stopDeepgramCapture().then(() => {
+        sendResponse({ success: true });
+      }).catch(err => {
+        sendResponse({ success: false });
+      });
+      return true;
+
+    case 'DEEPGRAM_TRANSCRIPT':
+      // Forward Deepgram transcripts from offscreen to popup and content scripts
+      if (request.isFinal && request.text) {
+        transcriptLines.push({ text: request.text, startMs: request.timestamp || Date.now() });
+        currentTranscript += (currentTranscript ? ' ' : '') + request.text;
+        persistTranscriptState();
+      }
+      broadcastTranscript();
+      // Forward to popup
+      chrome.runtime.sendMessage({
+        type: 'DEEPGRAM_TRANSCRIPT',
+        text: request.text,
+        isFinal: request.isFinal,
+        timestamp: request.isFinal ? new Date().toLocaleTimeString() : '',
+      }).catch(() => {});
+      // Forward to all content scripts (for floating widget display + text injection)
+      chrome.tabs.query({}).then((tabs) => {
+        for (const tab of tabs) {
+          if (tab.id) {
+            chrome.tabs.sendMessage(tab.id, {
+              type: 'DEEPGRAM_TRANSCRIPT',
+              text: request.text,
+              isFinal: request.isFinal,
+              timestamp: request.isFinal ? new Date().toLocaleTimeString() : '',
+            }).catch(() => {});
+          }
+        }
+      }).catch(() => {});
+      sendResponse({ received: true });
+      break;
+
+    case 'DEEPGRAM_STARTED':
+      isRecording = true;
+      persistTranscriptState();
+      broadcastState();
+      // Forward to content scripts so widget updates
+      chrome.tabs.query({}).then((tabs) => {
+        for (const tab of tabs) {
+          if (tab.id) {
+            chrome.tabs.sendMessage(tab.id, { type: 'DEEPGRAM_STARTED' }).catch(() => {});
+          }
+        }
+      }).catch(() => {});
+      sendResponse({ received: true });
+      break;
+
+    case 'DEEPGRAM_STOPPED':
+      isRecording = false;
+      persistTranscriptState();
+      broadcastState();
+      // Forward to content scripts
+      chrome.tabs.query({}).then((tabs) => {
+        for (const tab of tabs) {
+          if (tab.id) {
+            chrome.tabs.sendMessage(tab.id, { type: 'DEEPGRAM_STOPPED', reason: request.reason }).catch(() => {});
+          }
+        }
+      }).catch(() => {});
+      sendResponse({ received: true });
+      break;
+
+    case 'DEEPGRAM_ERROR':
+      console.error('Deepgram error from offscreen:', request.error);
+      isRecording = false;
+      broadcastState();
+      // Forward to content scripts
+      chrome.tabs.query({}).then((tabs) => {
+        for (const tab of tabs) {
+          if (tab.id) {
+            chrome.tabs.sendMessage(tab.id, { type: 'DEEPGRAM_ERROR', error: request.error }).catch(() => {});
+          }
+        }
+      }).catch(() => {});
+      sendResponse({ received: true });
+      break;
 
     case 'SET_SITE_SETTINGS':
       setSiteSettings(request.hostname, request.settings).then(() => {
@@ -166,6 +284,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
       return true;
 
+    case 'GET_SESSION_LIMIT':
+      SpeakScribeLicense.getSessionLimit().then(limitMs => {
+        sendResponse({ limitMs });
+      }).catch(err => {
+        sendResponse({ limitMs: SpeakScribeLicense.FREE_SESSION_LIMIT_MS });
+      });
+      return true;
+
     case 'OPEN_UPGRADE':
       chrome.tabs.create({ url: chrome.runtime.getURL('pages/upgrade.html') });
       sendResponse({ success: true });
@@ -216,13 +342,14 @@ chrome.commands.onCommand.addListener((command) => {
   }
 });
 
+// --- Fix #3: Use canonical 'settings' key with shared defaults ---
 async function handleToggleTranscription() {
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true }).catch(() => []);
   if (tabs.length === 0) return;
 
   const activeTab = tabs[0];
-  const result = await chrome.storage.local.get('defaultSettings').catch(() => ({}));
-  const defaultSettings = result.defaultSettings || {};
+  const result = await chrome.storage.local.get('settings').catch(() => ({}));
+  const settings = result.settings || SpeakScribeDefaults;
 
   if (isRecording) {
     chrome.tabs.sendMessage(activeTab.id, {
@@ -233,7 +360,7 @@ async function handleToggleTranscription() {
   } else {
     chrome.tabs.sendMessage(activeTab.id, {
       type: 'START_RECOGNITION',
-      settings: defaultSettings
+      settings: settings
     }).catch(err => {
       console.error('Error sending start recognition:', err);
     });
@@ -267,13 +394,30 @@ async function openFloatingWindow() {
 
 async function createFloatingWindow() {
   try {
+    // Position the floating window at the right edge of the current display
+    let left = 100;
+    let top = 100;
+    try {
+      const currentWindow = await chrome.windows.getCurrent();
+      if (currentWindow && currentWindow.width && currentWindow.left !== undefined) {
+        // Place to the right of the current window, or at right edge of screen
+        left = Math.max(0, (currentWindow.left + currentWindow.width) - 440);
+        top = currentWindow.top + 50;
+      }
+    } catch (e) {
+      // Fall back to reasonable defaults
+      left = 100;
+      top = 100;
+    }
+
     const windowInfo = await chrome.windows.create({
-      url: 'pages/floating.html',
+      url: chrome.runtime.getURL('pages/floating.html'),
       type: 'popup',
       width: 420,
       height: 600,
-      left: 1400,
-      top: 100
+      left: left,
+      top: top,
+      focused: true
     });
 
     floatingWindowId = windowInfo.id;
@@ -300,6 +444,7 @@ chrome.windows.onRemoved.addListener((windowId) => {
   }
 });
 
+// --- Fix #4: Store numeric startMs for real SRT timestamps ---
 function handleTranscriptUpdate(data) {
   const { text, isFinal, timestamp } = data;
 
@@ -308,21 +453,35 @@ function handleTranscriptUpdate(data) {
     transcriptLines.push({
       text,
       timestamp: timestamp || new Date().toISOString(),
-      duration: 3000
+      startMs: Date.now()
     });
+    persistTranscriptState();
   }
 
   broadcastTranscript();
 }
 
+// --- Fix #14: Broadcast transcript to both extension pages AND content scripts ---
 function broadcastTranscript() {
+  // Broadcast to extension pages (popup, floating, options)
   chrome.runtime.sendMessage({
     type: 'TRANSCRIPT_UPDATED',
     currentTranscript,
     transcriptLines
-  }).catch(err => {
+  }).catch(() => {});
 
-  });
+  // Also broadcast to all content scripts
+  chrome.tabs.query({}).then((tabs) => {
+    for (const tab of tabs) {
+      if (tab.id) {
+        chrome.tabs.sendMessage(tab.id, {
+          type: 'TRANSCRIPT_BROADCAST',
+          currentTranscript,
+          transcriptLines
+        }).catch(() => {});
+      }
+    }
+  }).catch(() => {});
 }
 
 function broadcastState() {
@@ -334,11 +493,10 @@ function broadcastState() {
     transcriptLines,
     isMeetingMode,
     meetingTabId
-  }).catch(err => {
-
-  });
+  }).catch(() => {});
 }
 
+// --- Fix #7: Pass user language to meeting capture ---
 async function handleMeetingTranscript(data) {
   const { text, isFinal, timestamp } = data;
 
@@ -347,8 +505,9 @@ async function handleMeetingTranscript(data) {
     transcriptLines.push({
       text,
       timestamp: timestamp || new Date().toISOString(),
-      duration: 3000
+      startMs: Date.now()
     });
+    persistTranscriptState();
   }
 
   const tabs = await chrome.tabs.query({}).catch(() => []);
@@ -358,9 +517,7 @@ async function handleMeetingTranscript(data) {
       text,
       isFinal,
       timestamp
-    }).catch(err => {
-
-    });
+    }).catch(() => {});
   }
 
   broadcastTranscript();
@@ -397,25 +554,35 @@ function exportAsJSON() {
   }, null, 2);
 }
 
+// --- Fix #4: Use real timestamps for SRT export ---
 function exportAsSRT() {
   let output = '';
-  let startTime = 0;
+
+  // Determine the recording start time from the first line
+  const baseMs = transcriptLines.length > 0 ? transcriptLines[0].startMs : 0;
 
   for (let i = 0; i < transcriptLines.length; i++) {
     const line = transcriptLines[i];
-    const duration = line.duration || 3000;
-    const endTime = startTime + duration;
+    // Offset from the beginning of the recording
+    const startOffset = (line.startMs || 0) - baseMs;
+    // End time: use next line's start if available, otherwise add a reasonable duration
+    let endOffset;
+    if (i + 1 < transcriptLines.length) {
+      endOffset = (transcriptLines[i + 1].startMs || 0) - baseMs;
+    } else {
+      // Estimate duration for last line: ~80ms per word, minimum 2 seconds
+      const wordCount = line.text.split(/\s+/).length;
+      endOffset = startOffset + Math.max(2000, wordCount * 80);
+    }
 
     const entryNumber = i + 1;
-    const startTimeFormatted = formatSRTTime(startTime);
-    const endTimeFormatted = formatSRTTime(endTime);
+    const startTimeFormatted = formatSRTTime(Math.max(0, startOffset));
+    const endTimeFormatted = formatSRTTime(Math.max(0, endOffset));
 
     output += entryNumber + '\n';
     output += startTimeFormatted + ' --> ' + endTimeFormatted + '\n';
     output += line.text + '\n';
     output += '\n';
-
-    startTime = endTime;
   }
 
   return output;
@@ -489,11 +656,63 @@ async function startMeetingModeForActiveTab() {
   }
 }
 
+// --- Deepgram Enhanced engine: start/stop via offscreen document ---
+async function ensureOffscreenDocument() {
+  if (offscreenCreated) {
+    try {
+      const hasDoc = await chrome.offscreen.hasDocument();
+      if (!hasDoc) offscreenCreated = false;
+    } catch (e) {
+      offscreenCreated = false;
+    }
+  }
+  if (!offscreenCreated) {
+    await chrome.offscreen.createDocument({
+      url: 'pages/offscreen.html',
+      reasons: ['USER_MEDIA'],
+      justification: 'Audio capture for enhanced transcription'
+    });
+    offscreenCreated = true;
+  }
+}
+
+async function startDeepgramCapture({ proxyUrl, licenseKey, language, diarize }) {
+  await ensureOffscreenDocument();
+  chrome.runtime.sendMessage({
+    type: 'START_DEEPGRAM',
+    proxyUrl: proxyUrl || 'ws://localhost:3001',
+    licenseKey: licenseKey || '',
+    language: language || 'en-US',
+    diarize: diarize || false,
+  }).catch(() => {});
+}
+
+async function stopDeepgramCapture() {
+  if (offscreenCreated) {
+    chrome.runtime.sendMessage({ type: 'STOP_DEEPGRAM' }).catch(() => {});
+  }
+}
+
+// --- Fix #7 & #16: Pass language to offscreen, add health check ---
 async function startMeetingCapture(tabId) {
   try {
     const streamId = await chrome.tabCapture.getMediaStreamId({
       targetTabId: tabId
     });
+
+    // Fix #16: Check if offscreen document actually exists before assuming
+    if (offscreenCreated) {
+      try {
+        // Verify the document is still alive (Chrome 116+)
+        const hasDoc = await chrome.offscreen.hasDocument();
+        if (!hasDoc) {
+          offscreenCreated = false;
+        }
+      } catch (e) {
+        // hasDocument not available; try sending a ping
+        offscreenCreated = false;
+      }
+    }
 
     if (!offscreenCreated) {
       await chrome.offscreen.createDocument({
@@ -504,10 +723,16 @@ async function startMeetingCapture(tabId) {
       offscreenCreated = true;
     }
 
+    // Fix #7: Read user's language setting and pass it to the offscreen document
+    const settingsData = await chrome.storage.local.get('settings').catch(() => ({}));
+    const userSettings = settingsData.settings || SpeakScribeDefaults;
+    const language = userSettings.language || 'en-US';
+
     chrome.runtime.sendMessage({
       type: 'START_MEETING_CAPTURE',
       streamId,
-      tabId
+      tabId,
+      language
     }).catch(err => {
       console.error('Error sending start capture message:', err);
     });
@@ -568,45 +793,44 @@ async function getSiteSettings(hostname) {
   }
 }
 
+// --- Fix #3: Use canonical 'settings' key with shared SpeakScribeDefaults ---
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     SpeakScribeLicense.ensureInstallDate().catch(() => {});
 
-    chrome.storage.local.get(['defaultSettings'], (result) => {
+    chrome.storage.local.get(['settings'], (result) => {
       if (chrome.runtime.lastError) {
         console.error('Error checking existing settings:', chrome.runtime.lastError);
         return;
       }
 
-
-      if (result.defaultSettings) {
+      if (result.settings) {
         console.log('[SpeakScribe] Extension reloaded, skipping first-install setup.');
         return;
       }
 
-      const defaultSettings = {
+      chrome.storage.local.set({
+        settings: { ...SpeakScribeDefaults },
+        siteSettings: {},
         customCommands: [],
-        showCommandPalette: true,
-        meetingAutoTranscribe: false,
-        exportFormat: 'txt',
-        perSiteEnabled: false,
-        language: 'en-US',
-        autoCapitalize: true,
-        autoScroll: false,
-        engine: 'webspeech',
-        whisperModel: 'base',
-        smartPunctuation: true,
-        showTimestamps: false,
-        continuousListening: true,
-        autoOpenOverlay: false
-      };
-
-      chrome.storage.local.set({ defaultSettings, siteSettings: {} }, () => {
+        customVocab: []
+      }, () => {
         if (chrome.runtime.lastError) {
           console.error('Error setting default settings:', chrome.runtime.lastError);
         }
-
       });
+    });
+  }
+
+  // Migrate legacy 'defaultSettings' key to 'settings' on update
+  if (details.reason === 'update') {
+    chrome.storage.local.get(['defaultSettings', 'settings'], (result) => {
+      if (chrome.runtime.lastError) return;
+      if (result.defaultSettings && !result.settings) {
+        chrome.storage.local.set({ settings: result.defaultSettings }, () => {
+          chrome.storage.local.remove('defaultSettings').catch(() => {});
+        });
+      }
     });
   }
 });
@@ -618,30 +842,19 @@ SpeakScribeLicense.validateLicense().then(result => {
   }
 }).catch(() => {});
 
-chrome.storage.local.get(['defaultSettings'], (result) => {
+// Ensure settings exist on every SW startup
+chrome.storage.local.get(['settings'], (result) => {
   if (chrome.runtime.lastError) {
     console.error('Error during extension initialization:', chrome.runtime.lastError);
     return;
   }
-  if (!result.defaultSettings) {
-    const defaultSettings = {
+  if (!result.settings) {
+    chrome.storage.local.set({
+      settings: { ...SpeakScribeDefaults },
+      siteSettings: {},
       customCommands: [],
-      showCommandPalette: true,
-      meetingAutoTranscribe: false,
-      exportFormat: 'txt',
-      perSiteEnabled: false,
-      language: 'en-US',
-      autoCapitalize: true,
-      autoScroll: false,
-      engine: 'webspeech',
-      whisperModel: 'base',
-      smartPunctuation: true,
-      showTimestamps: false,
-      continuousListening: true,
-      autoOpenOverlay: false
-    };
-
-    chrome.storage.local.set({ defaultSettings, siteSettings: {} }, () => {
+      customVocab: []
+    }, () => {
       if (chrome.runtime.lastError) {
         console.error('Error initializing extension settings:', chrome.runtime.lastError);
       }

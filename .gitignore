@@ -17,9 +17,13 @@ package-lock.json
 *.zip
 *.crx
 *.pem
+dist/
 
 # Whisper model files (large binaries, download at runtime)
 models/
 whisper/*.bin
 whisper/*.onnx
 gh_*
+
+# Dev preview files
+popup-preview.html

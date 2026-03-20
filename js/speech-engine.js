@@ -1,4 +1,4 @@
-import { processTranscription, parseVocabulary } from './punctuation.js';
+import { processTranscription, parseVocabulary } from './punctuation-module.js';
 
 export class SpeechEngine {
   constructor() {

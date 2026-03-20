@@ -1,4 +1,4 @@
-
+/* SpeakScribe Floating Overlay - v3.0 (Teal/Cyan) */
 
 * {
   margin: 0;
@@ -111,7 +111,7 @@ body {
 }
 
 .transcript-line.interim {
-  color: #667eea;
+  color: #00d2ff;
   opacity: 0.7;
   font-style: italic;
 }
@@ -175,8 +175,8 @@ body {
 }
 
 .bottom-btn:hover {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: #00d2ff;
+  color: #00d2ff;
 }
 
 body.semi-transparent {

@@ -57,7 +57,7 @@ const NO_SPACE_AFTER = new Set(['(', '[', '{', '"', "'"]);
 
 const CAPITALIZE_AFTER = new Set(['.', '?', '!', '\n']);
 
-export function processTranscription(text, options = {}) {
+function processTranscription(text, options = {}) {
   const {
     smartPunctuation = true,
     autoCapitalize = true,
@@ -140,13 +140,13 @@ function cleanSpacing(text) {
 
 
   for (const punct of NO_SPACE_BEFORE) {
-    const regex = new RegExp(`\\s+\\${escapeRegex(punct)}`, 'g');
+    const regex = new RegExp(`\\s+${escapeRegex(punct)}`, 'g');
     result = result.replace(regex, punct);
   }
 
 
   for (const punct of NO_SPACE_AFTER) {
-    const regex = new RegExp(`\\${escapeRegex(punct)}\\s+`, 'g');
+    const regex = new RegExp(`${escapeRegex(punct)}\\s+`, 'g');
     result = result.replace(regex, punct);
   }
 
@@ -159,7 +159,7 @@ function cleanSpacing(text) {
   return result.trim();
 }
 
-export function parseVocabulary(vocabEntries) {
+function parseVocabulary(vocabEntries) {
   const words = [];
   const replacements = {};
 
@@ -183,4 +183,13 @@ export function parseVocabulary(vocabEntries) {
 
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Expose as global for content scripts (which cannot use ES module imports).
+// ES module consumers (speech-engine.js, etc.) use the named exports above.
+if (typeof window !== 'undefined') {
+  window.SpeakScribePunctuation = {
+    processTranscription: processTranscription,
+    parseVocabulary: parseVocabulary,
+  };
 }

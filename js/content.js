@@ -8,57 +8,25 @@
 
 
 
-  const PUNCTUATION_MAP = {
-    'period': '.', 'full stop': '.', 'dot': '.',
-    'comma': ',', 'question mark': '?',
-    'exclamation mark': '!', 'exclamation point': '!',
-    'semicolon': ';', 'semi colon': ';', 'colon': ':',
-    'dash': '-', 'hyphen': '-',
-    'ellipsis': '...', 'dot dot dot': '...',
-    'open quote': '\u201C', 'close quote': '\u201D', 'quote': '"',
-    'open parenthesis': '(', 'close parenthesis': ')',
-    'open bracket': '[', 'close bracket': ']',
-    'ampersand': '&', 'at sign': '@', 'hash': '#', 'hashtag': '#',
-    'dollar sign': '$', 'percent': '%', 'percent sign': '%',
-    'asterisk': '*', 'star': '*', 'slash': '/', 'underscore': '_',
-    'new line': '\n', 'newline': '\n', 'new paragraph': '\n\n',
-  };
-  const NO_SPACE_BEFORE = ['.', ',', '?', '!', ';', ':', ')', ']', '}', '%'];
-  const CAPITALIZE_AFTER = new Set(['.', '?', '!', '\n']);
-
+  // Use the shared punctuation module (loaded before content.js via manifest).
+  // Defensive: if punctuation.js failed to load, fall back to passthrough.
+  const _punct = window.SpeakScribePunctuation;
+  if (!_punct) {
+    console.warn('[SpeakScribe] window.SpeakScribePunctuation not found. punctuation.js may have failed to load.');
+  }
   function processText(text, opts) {
     if (!text) return '';
-    let r = text;
-    if (opts.vocabReplacements) {
-      for (const [w, c] of Object.entries(opts.vocabReplacements)) {
-        r = r.replace(new RegExp('\\b' + esc(w) + '\\b', 'gi'), c);
-      }
+    if (_punct && _punct.processTranscription) {
+      return _punct.processTranscription(text, opts);
     }
-    if (opts.smartPunctuation !== false) {
-      const sorted = Object.entries(PUNCTUATION_MAP).sort((a, b) => b[0].length - a[0].length);
-      for (const [s, sym] of sorted) r = r.replace(new RegExp('\\b' + esc(s) + '\\b', 'gi'), sym);
-    }
-    if (opts.autoCapitalize !== false) {
-      let out = '', cap = true;
-      for (const ch of r) {
-        if (cap && /[a-zA-Z]/.test(ch)) { out += ch.toUpperCase(); cap = false; }
-        else { out += ch; }
-        if (CAPITALIZE_AFTER.has(ch)) cap = true;
-      }
-      r = out;
-    }
-    for (const p of NO_SPACE_BEFORE) r = r.replace(new RegExp('\\s+' + esc(p), 'g'), p);
-    r = r.replace(/([.?!,;:])([A-Za-z])/g, '$1 $2').replace(/ {2,}/g, ' ');
-    return r.trim();
+    return text;
   }
-  function esc(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
   function parseVocab(entries) {
-    const m = {};
-    for (const e of (entries || [])) {
-      const t = e.trim();
-      if (t.includes('=')) { const [w, c] = t.split('=').map(s => s.trim()); if (w && c) m[w] = c; }
+    if (_punct && _punct.parseVocabulary) {
+      const result = _punct.parseVocabulary(entries || []);
+      return result.replacements;
     }
-    return m;
+    return {};
   }
   function escHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
@@ -411,11 +379,12 @@
   }, true);
 
   document.addEventListener('focusout', (e) => {
-    setTimeout(() => {
-      const active = document.activeElement;
-      if (active && widget && widget.contains(active)) return;
-      if (active && findTextInputAncestor(active)) return;
-    }, 100);
+    // When focus leaves a text input, remember it as the last known target
+    // so we can inject text even if focus moved to the FAB or widget
+    const leavingTarget = findTextInputAncestor(e.target);
+    if (leavingTarget) {
+      activeInputTarget = leavingTarget;
+    }
   }, true);
 
 
@@ -466,8 +435,14 @@
       console.log('[SpeakScribe] Could not query mic permission, will try getUserMedia');
     }
 
+    // Wrap getUserMedia with a timeout so it cannot hang indefinitely
+    // (e.g. if user gesture expired and Chrome silently drops the prompt)
     try {
-      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const micPromise = navigator.mediaDevices.getUserMedia({ audio: true });
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Mic prompt timed out after 15 seconds')), 15000);
+      });
+      micStream = await Promise.race([micPromise, timeoutPromise]);
       console.log('[SpeakScribe] Mic access granted via getUserMedia');
       return true;
     } catch (err) {
@@ -497,6 +472,12 @@
   let lastInjectedFinalText = '';
   let meetingModeActive = false;
   let bubbleClearTimer = null;
+  let usingDeepgram = false; // true when Enhanced engine is active via offscreen
+
+  // Free-tier session timer (content script side)
+  let csSessionLimitMs = 0;
+  let csSessionElapsed = 0;
+  let csSessionTimer = null;
 
   function createRecognition(settings) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -552,10 +533,22 @@
           textToInject = textToInject.toUpperCase();
         }
 
-        if (activeInputTarget && document.body.contains(activeInputTarget)) {
+        // Try to find the best injection target
+        let target = activeInputTarget;
+        if (!target || !document.body.contains(target)) {
+          // Fallback: find the currently focused text field
+          const focused = document.activeElement;
+          const found = findTextInputAncestor(focused);
+          if (found) {
+            target = found;
+            activeInputTarget = found;
+          }
+        }
+
+        if (target && document.body.contains(target)) {
           const prefix = lastInjectedFinalText ? ' ' : '';
           const finalText = prefix + textToInject;
-          const injected = injectTextIntoField(activeInputTarget, finalText);
+          const injected = injectTextIntoField(target, finalText);
           if (injected) {
             lastInjectedFinalText = textToInject;
             addToHistory(textToInject);
@@ -568,14 +561,20 @@
               transcriptLines = [];
               updateBubble('', '');
             }, 800);
+          } else {
+            console.warn('[SpeakScribe] Injection failed for target:', target.tagName, target.className);
           }
+        } else {
+          console.log('[SpeakScribe] No active text field to inject into');
         }
       }
     };
 
     rec.onaudiostart = () => {
       console.log('[SpeakScribe] Audio capture started (mic is working)');
-      releaseMicStream();
+      // Release the pre-check getUserMedia stream after a short delay to ensure
+      // SpeechRecognition has fully acquired its own audio pipeline first.
+      setTimeout(() => releaseMicStream(), 500);
       showStatus('Listening... speak now');
     };
 
@@ -652,7 +651,7 @@
     return rec;
   }
 
-  async function startRecognition(settings) {
+  async function startRecognition(settings, skipMicCheck) {
     currentSettings = settings;
     manualStop = false;
     restartCount = 0;
@@ -663,12 +662,22 @@
     injectionHistory = [];
     updateBubble('', '');
 
-    showStatus('Requesting microphone access...');
-    const hasMic = await ensureMicPermission();
-    if (!hasMic) {
-      showError('Microphone access denied. Click the lock icon in the address bar to allow mic access.');
-      updateFabState(false);
-      return;
+    // When skipMicCheck is true (FAB click path), we skip the getUserMedia
+    // pre-check entirely and let SpeechRecognition.start() request mic access
+    // on its own. This avoids conflicts between two parallel audio captures
+    // and timing issues with user gesture expiration. The onerror handler
+    // catches 'not-allowed' if the user denies the mic prompt.
+    //
+    // When skipMicCheck is false (external START_RECOGNITION message), we
+    // still do the pre-check since there is no user gesture in that context.
+    if (!skipMicCheck) {
+      showStatus('Requesting microphone access...');
+      const hasMic = await ensureMicPermission();
+      if (!hasMic) {
+        showError('Microphone access denied. Click the lock icon in the address bar to allow mic access.');
+        updateFabState(false);
+        return;
+      }
     }
 
     if (recognition) { try { recognition.abort(); } catch (e) {} }
@@ -677,6 +686,32 @@
 
     isListening = true;
     showStatus('Starting speech recognition...');
+
+    // Start free-tier session timer if applicable
+    try {
+      const limitResp = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: 'GET_SESSION_LIMIT' }, (r) => {
+          resolve(r || { limitMs: 0 });
+        });
+      });
+      csSessionLimitMs = limitResp.limitMs || 0;
+    } catch (e) {
+      csSessionLimitMs = 0;
+    }
+    if (csSessionLimitMs > 0) {
+      csSessionElapsed = 0;
+      csSessionTimer = setInterval(() => {
+        csSessionElapsed += 1000;
+        if (csSessionElapsed >= csSessionLimitMs) {
+          clearInterval(csSessionTimer);
+          csSessionTimer = null;
+          // Auto-stop: session limit reached
+          console.log('[SpeakScribe] Free session limit reached, stopping.');
+          stopRecognition();
+          showStatus('Session limit reached (5 min). Upgrade for unlimited.');
+        }
+      }, 1000);
+    }
 
     try {
       recognition.start();
@@ -705,6 +740,12 @@
     lastInjectedFinalText = '';
     capsMode = false;
     clearTimeout(restartTimer);
+    // Clear free-tier session timer
+    if (csSessionTimer) {
+      clearInterval(csSessionTimer);
+      csSessionTimer = null;
+    }
+    csSessionElapsed = 0;
     if (recognition) { try { recognition.stop(); } catch (e) {} }
     releaseMicStream();
     updateFabState(false);
@@ -759,7 +800,7 @@
     fab = document.createElement('button');
     fab.id = 'speakscribe-fab';
     const fabIcon = document.createElement('img');
-    fabIcon.src = chrome.runtime.getURL('icons/ui/mic-32.png');
+    fabIcon.src = chrome.runtime.getURL('icons/ui/mic-32.svg');
     fabIcon.alt = 'Mic';
     fabIcon.className = 'ss-fab-icon';
     fabIcon.id = 'speakscribe-fab-icon';
@@ -777,21 +818,21 @@
     actionsRow = document.createElement('div');
     actionsRow.id = 'speakscribe-actions';
 
-    const copyBtn = makeActionBtn('icons/ui/copy-24.png', 'Copy transcript', () => {
+    const copyBtn = makeActionBtn('icons/ui/copy-24.svg', 'Copy transcript', () => {
       if (fullTranscript.trim()) {
         copyToClipboard(fullTranscript).then((ok) => {
           if (ok) {
             copyBtn.textContent = '\u2713';
-            setTimeout(() => { copyBtn.innerHTML = ''; const img = document.createElement('img'); img.src = chrome.runtime.getURL('icons/ui/copy-24.png'); img.alt = 'Copy'; img.className = 'ss-action-icon'; copyBtn.appendChild(img); }, 1200);
+            setTimeout(() => { copyBtn.innerHTML = ''; const img = document.createElement('img'); img.src = chrome.runtime.getURL('icons/ui/copy-24.svg'); img.alt = 'Copy'; img.className = 'ss-action-icon'; copyBtn.appendChild(img); }, 1200);
           } else {
             copyBtn.textContent = '\u2717';
-            setTimeout(() => { copyBtn.innerHTML = ''; const img = document.createElement('img'); img.src = chrome.runtime.getURL('icons/ui/copy-24.png'); img.alt = 'Copy'; img.className = 'ss-action-icon'; copyBtn.appendChild(img); }, 1200);
+            setTimeout(() => { copyBtn.innerHTML = ''; const img = document.createElement('img'); img.src = chrome.runtime.getURL('icons/ui/copy-24.svg'); img.alt = 'Copy'; img.className = 'ss-action-icon'; copyBtn.appendChild(img); }, 1200);
           }
         });
       }
     });
 
-    const clearBtn = makeActionBtn('icons/ui/delete-24.png', 'Clear transcript', () => {
+    const clearBtn = makeActionBtn('icons/ui/delete-24.svg', 'Clear transcript', () => {
       fullTranscript = '';
       transcriptLines = [];
       lastInjectedFinalText = '';
@@ -800,16 +841,12 @@
       chrome.runtime.sendMessage({ type: 'CLEAR_TRANSCRIPT' }).catch(() => {});
     });
 
-    const overlayBtn = makeActionBtn('icons/ui/overlay-24.png', 'Open overlay', async () => {
-      const allowed = await checkLicenseFeature('floatingOverlay');
-      if (!allowed) {
-        showUpgradePrompt('Floating overlay');
-        return;
-      }
+    // floatingOverlay is a free feature, no license check needed
+    const overlayBtn = makeActionBtn('icons/ui/overlay-24.svg', 'Open overlay', () => {
       chrome.runtime.sendMessage({ type: 'OPEN_FLOATING' }).catch(() => {});
     });
 
-    const hideBtn = makeActionBtn('icons/ui/delete-24.png', 'Hide SpeakScribe', () => {
+    const hideBtn = makeActionBtn('icons/ui/delete-24.svg', 'Hide SpeakScribe', () => {
       if (isListening) {
         if (!confirm('Recording is active. Hide SpeakScribe anyway?')) return;
       }
@@ -880,6 +917,7 @@
       btn.textContent = iconSrc;
     }
     btn.title = titleText;
+    btn.addEventListener('mousedown', (e) => { e.preventDefault(); }); // Prevent focus steal
     btn.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
     return btn;
   }
@@ -973,8 +1011,12 @@
 
   function setupFabClick() {
     let mouseDownTime = 0;
-    fab.addEventListener('mousedown', () => { mouseDownTime = Date.now(); });
-    fab.addEventListener('mouseup', () => {
+    fab.addEventListener('mousedown', (e) => {
+      e.preventDefault(); // Prevent FAB from stealing focus from the active text field
+      mouseDownTime = Date.now();
+    });
+    fab.addEventListener('mouseup', (e) => {
+      e.preventDefault();
       if (Date.now() - mouseDownTime < 300 && !_hasDragged) {
         toggleRecording();
       }
@@ -1070,46 +1112,124 @@
   }
 
   async function toggleRecording() {
-    if (isListening) {
-      stopRecognition();
-      chrome.runtime.sendMessage({ type: 'SET_RECORDING', value: false }).catch(() => {});
-    } else {
-      const data = await new Promise(r => chrome.storage.local.get('settings', r));
-      const s = data.settings || {};
-
-      const siteSettings = await new Promise(r => chrome.storage.local.get('siteSettings', r));
-      let settings = {
-        language: s.language || 'en-US',
-        continuous: s.continuousListening !== false,
-        smartPunctuation: s.smartPunctuation !== false,
-        autoCapitalize: s.autoCapitalize !== false,
-        customVocab: s.customVocab || [],
-      };
-
-      if (siteSettings.siteSettings && siteSettings.siteSettings[window.location.hostname]) {
-        const hasSitePerm = await checkLicenseFeature('perSiteSettings');
-        if (hasSitePerm) {
-          const siteSetting = siteSettings.siteSettings[window.location.hostname];
-          if (siteSetting.language) settings.language = siteSetting.language;
-          if (siteSetting.smartPunctuation !== undefined) settings.smartPunctuation = siteSetting.smartPunctuation;
-          if (siteSetting.autoCapitalize !== undefined) settings.autoCapitalize = siteSetting.autoCapitalize;
+    try {
+      if (isListening || usingDeepgram) {
+        if (usingDeepgram) {
+          stopDeepgramFromWidget();
+        } else {
+          stopRecognition();
         }
-      }
+        chrome.runtime.sendMessage({ type: 'SET_RECORDING', value: false }).catch(() => {});
+      } else {
+        const data = await new Promise(r => chrome.storage.local.get('settings', r));
+        const s = data.settings || {};
 
-      const langAllowed = await checkLicenseLanguage(settings.language);
-      if (!langAllowed) {
-        showUpgradePrompt('Language: ' + settings.language);
-        settings.language = 'en-US';
-      }
+        // Check if Enhanced engine is selected
+        if (s.engine === 'deepgram') {
+          // Route through background -> offscreen for Deepgram Enhanced
+          await startDeepgramFromWidget(s);
+          return;
+        }
 
-      const contAllowed = await checkLicenseFeature('continuousListening');
-      if (!contAllowed) {
-        settings.continuous = false;
-      }
+        // Standard engine: use Web Speech API in content script
+        // Request mic permission FIRST while user gesture is active
+        showStatus('Requesting microphone access...');
+        const hasMic = await ensureMicPermission();
+        if (!hasMic) {
+          showError('Microphone access denied. Click the lock icon in the address bar to allow mic access.');
+          updateFabState(false);
+          return;
+        }
 
-      await startRecognition(settings);
-      chrome.runtime.sendMessage({ type: 'SET_RECORDING', value: true }).catch(() => {});
+        const siteSettings = await new Promise(r => chrome.storage.local.get('siteSettings', r));
+        let settings = {
+          language: s.language || 'en-US',
+          continuous: s.continuousListening !== false,
+          smartPunctuation: s.smartPunctuation !== false,
+          autoCapitalize: s.autoCapitalize !== false,
+          customVocab: s.customVocab || [],
+        };
+
+        if (siteSettings.siteSettings && siteSettings.siteSettings[window.location.hostname]) {
+          const hasSitePerm = await checkLicenseFeature('perSiteSettings');
+          if (hasSitePerm) {
+            const siteSetting = siteSettings.siteSettings[window.location.hostname];
+            if (siteSetting.language) settings.language = siteSetting.language;
+            if (siteSetting.smartPunctuation !== undefined) settings.smartPunctuation = siteSetting.smartPunctuation;
+            if (siteSetting.autoCapitalize !== undefined) settings.autoCapitalize = siteSetting.autoCapitalize;
+          }
+        }
+
+        const langAllowed = await checkLicenseLanguage(settings.language);
+        if (!langAllowed) {
+          showUpgradePrompt('Language: ' + settings.language);
+          settings.language = 'en-US';
+        }
+
+        const contAllowed = await checkLicenseFeature('continuousListening');
+        if (!contAllowed) {
+          settings.continuous = false;
+        }
+
+        await startRecognition(settings, true);
+        chrome.runtime.sendMessage({ type: 'SET_RECORDING', value: true }).catch(() => {});
+      }
+    } catch (err) {
+      console.error('[SpeakScribe] toggleRecording error:', err);
+      showError('Error starting recording: ' + (err.message || 'unknown error'));
+      updateFabState(false);
     }
+  }
+
+  // --- Deepgram Enhanced engine support for floating widget ---
+
+  async function startDeepgramFromWidget(settings) {
+    showStatus('Starting Enhanced transcription...');
+    updateFabState(true);
+
+    // Clear previous transcript for the widget bubble
+    fullTranscript = '';
+    transcriptLines = [];
+    injectionHistory = [];
+    updateBubble('', '');
+
+    try {
+      const licenseInfo = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: 'GET_LICENSE_INFO' }, (r) => {
+          resolve(r || {});
+        });
+      });
+
+      chrome.runtime.sendMessage({
+        type: 'START_DEEPGRAM',
+        proxyUrl: settings.deepgramProxyUrl || 'ws://localhost:3001',
+        licenseKey: licenseInfo._rawLicenseKey || '',
+        language: settings.language || 'en-US',
+        diarize: settings.diarize || false,
+      }).catch(() => {});
+
+      usingDeepgram = true;
+      chrome.runtime.sendMessage({ type: 'SET_RECORDING', value: true }).catch(() => {});
+    } catch (err) {
+      console.error('[SpeakScribe] Deepgram start from widget failed:', err);
+      showError('Enhanced engine error: ' + (err.message || 'connection failed'));
+      updateFabState(false);
+      usingDeepgram = false;
+    }
+  }
+
+  function stopDeepgramFromWidget() {
+    usingDeepgram = false;
+    updateFabState(false);
+    chrome.runtime.sendMessage({ type: 'STOP_DEEPGRAM' }).catch(() => {});
+
+    // Clear bubble after text was injected (same behavior as Standard engine)
+    if (bubbleClearTimer) clearTimeout(bubbleClearTimer);
+    bubbleClearTimer = setTimeout(() => {
+      fullTranscript = '';
+      transcriptLines = [];
+      updateBubble('', '');
+    }, 800);
   }
 
 
@@ -1194,9 +1314,12 @@
         sendResponse({ success: true });
         break;
       case 'STATE_UPDATE':
-        if (message.isRecording && !isListening) updateFabState(true);
-        else if (!message.isRecording && isListening) stopRecognition();
-        else if (!message.isRecording) updateFabState(false);
+        // Don't interfere with Deepgram-managed state
+        if (!usingDeepgram) {
+          if (message.isRecording && !isListening) updateFabState(true);
+          else if (!message.isRecording && isListening) stopRecognition();
+          else if (!message.isRecording) updateFabState(false);
+        }
         sendResponse({ received: true });
         break;
       case 'MEETING_MODE_STATE':
@@ -1217,6 +1340,70 @@
           fullTranscript += (fullTranscript ? ' ' : '') + message.text;
           updateBubble(fullTranscript, '');
           broadcast(message.text, true, ts);
+        }
+        sendResponse({ received: true });
+        break;
+      case 'DEEPGRAM_TRANSCRIPT':
+        if (usingDeepgram && message.text) {
+          if (message.isFinal) {
+            const ts = new Date().toLocaleTimeString();
+            transcriptLines.push({ text: message.text, timestamp: ts });
+            fullTranscript += (fullTranscript ? ' ' : '') + message.text;
+            updateBubble(fullTranscript, '');
+
+            // Auto-inject into active text field (same as Standard engine)
+            let textToInject = message.text;
+            if (capsMode) textToInject = textToInject.toUpperCase();
+
+            let target = activeInputTarget;
+            if (!target || !document.body.contains(target)) {
+              const focused = document.activeElement;
+              const found = findTextInputAncestor(focused);
+              if (found) { target = found; activeInputTarget = found; }
+            }
+            if (target && document.body.contains(target)) {
+              const prefix = lastInjectedFinalText ? ' ' : '';
+              const injected = injectTextIntoField(target, prefix + textToInject);
+              if (injected) {
+                lastInjectedFinalText = textToInject;
+                addToHistory(textToInject);
+                if (bubbleClearTimer) clearTimeout(bubbleClearTimer);
+                bubbleClearTimer = setTimeout(() => {
+                  fullTranscript = '';
+                  transcriptLines = [];
+                  updateBubble('', '');
+                }, 800);
+              }
+            }
+          } else {
+            // Interim result: show in bubble
+            updateBubble(fullTranscript, message.text);
+          }
+        }
+        sendResponse({ received: true });
+        break;
+      case 'DEEPGRAM_STARTED':
+        if (usingDeepgram) {
+          updateFabState(true);
+          showStatus('Listening (Enhanced)...');
+        }
+        sendResponse({ received: true });
+        break;
+      case 'DEEPGRAM_STOPPED':
+        if (usingDeepgram) {
+          usingDeepgram = false;
+          updateFabState(false);
+          if (message.reason === 'connection_lost') {
+            showError('Enhanced: Connection lost');
+          }
+        }
+        sendResponse({ received: true });
+        break;
+      case 'DEEPGRAM_ERROR':
+        if (usingDeepgram) {
+          usingDeepgram = false;
+          updateFabState(false);
+          showError('Enhanced error: ' + (message.error || 'unknown'));
         }
         sendResponse({ received: true });
         break;
