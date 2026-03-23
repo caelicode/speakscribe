@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.5.0] - 2026-03-23
+
+### Features
+
+- v2.3.0 - Architecture overhaul, Deepgram Enhanced engine, security and reliability fixes
+
+### Bug Fixes
+
+- mic permission page button not working (CSP blocks inline scripts)
+- mic permission prompt for Enhanced engine
+- duplicate Deepgram connections and mic permission error handling
+
+### Other Changes
+
+- Merge pull request #9 from caelicode/feature/v2.2.0-redesign-and-session-limit
+- resolve conflicts with main, bump version to 2.4.0
+
+
 ## [2.4.0] - 2026-03-18
 
 ### Features
