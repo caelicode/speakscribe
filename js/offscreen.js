@@ -8,14 +8,11 @@ const audioState = {
     currentStreamId: null,
 };
 
-const whisperState = {
-    isInitialized: false,
-    model: null,
-    pipeline: null,
-    isLoading: false,
-};
+// Whisper engine removed. Only meeting capture remains.
 
-function initializeSpeechRecognition() {
+// Fix #7: Accept language parameter instead of hardcoding en-US
+// Fix #6: Add auto-restart logic so meeting transcription survives pauses
+function initializeSpeechRecognition(language) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
         console.error('Web Speech API not available in this context');
@@ -25,7 +22,7 @@ function initializeSpeechRecognition() {
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    recognition.lang = language || 'en-US';
 
     recognition.onstart = () => {
         console.log('[SpeechRecognition] Started');
@@ -70,25 +67,60 @@ function initializeSpeechRecognition() {
     };
 
     recognition.onerror = (event) => {
-        console.error('[SpeechRecognition] Error:', event.error);
-        chrome.runtime.sendMessage({
-            type: 'MEETING_TRANSCRIPT_ERROR',
-            error: event.error,
-            timestamp: Date.now(),
-        }).catch(err => {
-            console.error('[SpeechRecognition] Failed to send error message:', err);
-        });
+        const silentErrors = ['no-speech', 'aborted'];
+        if (!silentErrors.includes(event.error)) {
+            console.error('[SpeechRecognition] Error:', event.error);
+            chrome.runtime.sendMessage({
+                type: 'MEETING_TRANSCRIPT_ERROR',
+                error: event.error,
+                timestamp: Date.now(),
+            }).catch(err => {
+                console.error('[SpeechRecognition] Failed to send error message:', err);
+            });
+        }
+
+        // Auto-restart on recoverable errors
+        if (event.error === 'no-speech' && audioState.isCapturing) {
+            scheduleRecognitionRestart(300);
+        } else if (event.error === 'network' && audioState.isCapturing) {
+            scheduleRecognitionRestart(2000);
+        }
     };
 
+    // Fix #6: Auto-restart when recognition ends while still capturing
     recognition.onend = () => {
-        console.log('[SpeechRecognition] Ended');
-        audioState.isCapturing = false;
+        console.log('[SpeechRecognition] Ended, isCapturing:', audioState.isCapturing);
+        if (audioState.isCapturing) {
+            // Recognition ended but we're still capturing; restart it
+            scheduleRecognitionRestart(300);
+        }
     };
 
     return recognition;
 }
 
-async function startMeetingCapture({ streamId, tabId }) {
+let _recognitionRestartTimer = null;
+function scheduleRecognitionRestart(delayMs) {
+    clearTimeout(_recognitionRestartTimer);
+    _recognitionRestartTimer = setTimeout(() => {
+        if (audioState.isCapturing && audioState.recognition) {
+            try {
+                audioState.recognition.start();
+                console.log('[SpeechRecognition] Auto-restarted');
+            } catch (e) {
+                console.warn('[SpeechRecognition] Restart failed, recreating:', e.message);
+                audioState.recognition = initializeSpeechRecognition(audioState.recognition.lang);
+                if (audioState.recognition) {
+                    try { audioState.recognition.start(); } catch (e2) {
+                        console.error('[SpeechRecognition] Recreate+start also failed:', e2.message);
+                    }
+                }
+            }
+        }
+    }, delayMs);
+}
+
+async function startMeetingCapture({ streamId, tabId, language }) {
     if (audioState.isCapturing) {
         console.warn('[MeetingCapture] Already capturing audio');
         return;
@@ -114,7 +146,7 @@ async function startMeetingCapture({ streamId, tabId }) {
 
 
         if (!audioState.recognition) {
-            audioState.recognition = initializeSpeechRecognition();
+            audioState.recognition = initializeSpeechRecognition(language);
         }
 
         if (audioState.recognition) {
@@ -150,6 +182,11 @@ async function startMeetingCapture({ streamId, tabId }) {
 function stopMeetingCapture() {
     console.log('[MeetingCapture] Stopping capture');
 
+    // Clear any pending restart timer
+    clearTimeout(_recognitionRestartTimer);
+
+    // Set isCapturing false BEFORE stopping, so onend doesn't auto-restart
+    audioState.isCapturing = false;
 
     if (audioState.recognition) {
         audioState.recognition.stop();
@@ -170,7 +207,6 @@ function stopMeetingCapture() {
         audioState.audioContext = null;
     }
 
-    audioState.isCapturing = false;
     audioState.currentTabId = null;
     audioState.currentStreamId = null;
 
@@ -182,124 +218,190 @@ function stopMeetingCapture() {
     });
 }
 
-async function initializeWhisper({ model = 'Xenova/whisper-tiny.en' }) {
-    if (whisperState.isInitialized) {
-        console.log('[Whisper] Already initialized');
-        chrome.runtime.sendMessage({
-            type: 'WHISPER_INITIALIZED',
-            model,
-        }).catch(err => {
-            console.error('[Whisper] Failed to send initialized message:', err);
-        });
+// ---------------------------------------------------------------------------
+// Deepgram Enhanced Engine (runs in offscreen context for reliable mic access)
+// ---------------------------------------------------------------------------
+const dgState = {
+    ws: null,
+    mediaStream: null,
+    audioContext: null,
+    processor: null,
+    isActive: false,
+    keepAliveTimer: null,
+};
+
+async function startDeepgram({ proxyUrl, licenseKey, language, diarize }) {
+    if (dgState.isActive) {
+        console.warn('[Deepgram] Already active');
         return;
     }
-
-    if (whisperState.isLoading) {
-        console.log('[Whisper] Already loading');
-        return;
-    }
-
-    whisperState.isLoading = true;
 
     try {
-        console.log('[Whisper] Initializing with model:', model);
+        console.log('[Deepgram] Starting enhanced transcription');
 
+        // 1. Connect to proxy WebSocket
+        const lang = (language || 'en-US').split('-')[0];
+        const params = new URLSearchParams({
+            license: licenseKey || '',
+            language: lang,
+            diarize: diarize ? 'true' : 'false',
+        });
+        const wsUrl = `${proxyUrl}?${params.toString()}`;
 
-        const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3');
+        const ws = await new Promise((resolve, reject) => {
+            const socket = new WebSocket(wsUrl);
+            const timeout = setTimeout(() => {
+                socket.close();
+                reject(new Error('Proxy connection timed out'));
+            }, 10000);
 
+            socket.onopen = () => {
+                console.log('[Deepgram] WebSocket connected to proxy');
+            };
 
-        env.allowLocalModels = true;
-        env.allowRemoteModels = true;
+            socket.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'connected') {
+                        clearTimeout(timeout);
+                        resolve(socket);
+                        return;
+                    }
+                    if (msg.type === 'error') {
+                        clearTimeout(timeout);
+                        reject(new Error(msg.message));
+                        return;
+                    }
+                    // Forward transcript results to background/popup
+                    if (msg.type === 'transcript' && msg.data) {
+                        _handleDgTranscript(msg.data);
+                    }
+                } catch (e) {}
+            };
 
+            socket.onerror = () => {
+                clearTimeout(timeout);
+                reject(new Error('Cannot reach transcription server'));
+            };
 
-        env.onProgress = (progress) => {
-            console.log('[Whisper] Progress:', progress);
-            chrome.runtime.sendMessage({
-                type: 'WHISPER_PROGRESS',
-                progress,
-            }).catch(err => {
-                console.error('[Whisper] Failed to send progress message:', err);
+            socket.onclose = (ev) => {
+                clearTimeout(timeout);
+                if (!dgState.isActive) return;
+                console.log('[Deepgram] WebSocket closed:', ev.code);
+                stopDeepgram();
+                chrome.runtime.sendMessage({ type: 'DEEPGRAM_STOPPED', reason: 'connection_lost' }).catch(() => {});
+            };
+        });
+
+        dgState.ws = ws;
+
+        // 2. Get mic access (offscreen document shares extension origin permissions).
+        // If the extension origin hasn't been granted mic access yet (via the popup),
+        // this will fail with "Permission dismissed". Send a specific error so the
+        // UI can tell the user to grant permission via the popup first.
+        try {
+            dgState.mediaStream = await navigator.mediaDevices.getUserMedia({
+                audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true },
             });
+        } catch (micErr) {
+            throw new Error('MIC_PERMISSION_NEEDED');
+        }
+
+        // 3. Set up audio pipeline (PCM16 at 16kHz)
+        dgState.audioContext = new AudioContext({ sampleRate: 16000 });
+        const source = dgState.audioContext.createMediaStreamSource(dgState.mediaStream);
+        dgState.processor = dgState.audioContext.createScriptProcessor(4096, 1, 1);
+
+        dgState.processor.onaudioprocess = (event) => {
+            if (!dgState.isActive || !dgState.ws || dgState.ws.readyState !== WebSocket.OPEN) return;
+            const input = event.inputBuffer.getChannelData(0);
+            const pcm16 = new Int16Array(input.length);
+            for (let i = 0; i < input.length; i++) {
+                const s = Math.max(-1, Math.min(1, input[i]));
+                pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            dgState.ws.send(pcm16.buffer);
         };
 
-        console.log('[Whisper] Loading speech recognition pipeline');
+        source.connect(dgState.processor);
+        dgState.processor.connect(dgState.audioContext.destination);
 
+        dgState.isActive = true;
 
-        whisperState.pipeline = await pipeline('automatic-speech-recognition', model);
+        // 4. Keepalive
+        dgState.keepAliveTimer = setInterval(() => {
+            if (dgState.ws && dgState.ws.readyState === WebSocket.OPEN) {
+                dgState.ws.send(JSON.stringify({ type: 'keepalive' }));
+            }
+        }, 8000);
 
-        whisperState.model = model;
-        whisperState.isInitialized = true;
-        whisperState.isLoading = false;
+        console.log('[Deepgram] Streaming active');
+        chrome.runtime.sendMessage({ type: 'DEEPGRAM_STARTED' }).catch(() => {});
 
-        console.log('[Whisper] Pipeline loaded successfully');
-
+    } catch (err) {
+        console.error('[Deepgram] Start failed:', err.message);
+        stopDeepgram();
         chrome.runtime.sendMessage({
-            type: 'WHISPER_INITIALIZED',
-            model,
-            timestamp: Date.now(),
-        }).catch(err => {
-            console.error('[Whisper] Failed to send initialized message:', err);
-        });
-
-    } catch (error) {
-        console.error('[Whisper] Initialization error:', error.message);
-        whisperState.isLoading = false;
-
-        chrome.runtime.sendMessage({
-            type: 'WHISPER_ERROR',
-            error: error.message,
-            timestamp: Date.now(),
-        }).catch(err => {
-            console.error('[Whisper] Failed to send error message:', err);
-        });
+            type: 'DEEPGRAM_ERROR',
+            error: err.message,
+        }).catch(() => {});
     }
 }
 
-async function processAudioWithWhisper(audioData) {
-    if (!whisperState.isInitialized || !whisperState.pipeline) {
-        console.warn('[Whisper] Not yet initialized');
-        chrome.runtime.sendMessage({
-            type: 'WHISPER_PROCESS_ERROR',
-            error: 'Whisper model not yet loaded. Please call WHISPER_INIT first.',
-            timestamp: Date.now(),
-        }).catch(err => {
-            console.error('[Whisper] Failed to send process error:', err);
-        });
-        return;
-    }
+function stopDeepgram() {
+    console.log('[Deepgram] Stopping');
+    dgState.isActive = false;
 
-    try {
-        console.log('[Whisper] Processing audio chunk');
-
-
-        const result = await whisperState.pipeline(audioData);
-
-        console.log('[Whisper] Result:', result);
-
-        chrome.runtime.sendMessage({
-            type: 'WHISPER_RESULT',
-            text: result.text,
-            timestamp: Date.now(),
-        }).catch(err => {
-            console.error('[Whisper] Failed to send result message:', err);
-        });
-
-    } catch (error) {
-        console.error('[Whisper] Processing error:', error.message);
-
-        chrome.runtime.sendMessage({
-            type: 'WHISPER_PROCESS_ERROR',
-            error: error.message,
-            timestamp: Date.now(),
-        }).catch(err => {
-            console.error('[Whisper] Failed to send error message:', err);
-        });
+    if (dgState.keepAliveTimer) { clearInterval(dgState.keepAliveTimer); dgState.keepAliveTimer = null; }
+    if (dgState.processor) { try { dgState.processor.disconnect(); } catch (e) {} dgState.processor = null; }
+    if (dgState.audioContext) { try { dgState.audioContext.close(); } catch (e) {} dgState.audioContext = null; }
+    if (dgState.mediaStream) { dgState.mediaStream.getTracks().forEach(t => t.stop()); dgState.mediaStream = null; }
+    if (dgState.ws) {
+        try {
+            if (dgState.ws.readyState === WebSocket.OPEN) {
+                dgState.ws.send(JSON.stringify({ type: 'close' }));
+            }
+            dgState.ws.close();
+        } catch (e) {}
+        dgState.ws = null;
     }
 }
 
+function _handleDgTranscript(data) {
+    if (!data.channel || !data.channel.alternatives || !data.channel.alternatives.length) return;
+    const transcript = data.channel.alternatives[0].transcript || '';
+    if (!transcript.trim()) return;
+
+    const isFinal = data.is_final === true;
+    chrome.runtime.sendMessage({
+        type: 'DEEPGRAM_TRANSCRIPT',
+        text: transcript,
+        isFinal: isFinal,
+        timestamp: isFinal ? Date.now() : undefined,
+    }).catch(() => {});
+}
+
+// ---------------------------------------------------------------------------
+// Message handler
+// ---------------------------------------------------------------------------
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('[Offscreen] Received message:', message.type);
 
+    // Only handle _INTERNAL_ prefixed messages from the background service worker
+    // to avoid duplicates (chrome.runtime.sendMessage broadcasts to all contexts).
+    if (message.type === '_INTERNAL_START_DEEPGRAM') {
+        startDeepgram(message).catch(err => {
+            console.error('[Offscreen] Error in START_DEEPGRAM:', err);
+        });
+        sendResponse({ status: 'processing' });
+        return true;
+    }
+
+    if (message.type === '_INTERNAL_STOP_DEEPGRAM') {
+        stopDeepgram();
+        sendResponse({ status: 'stopped' });
+        return true;
+    }
 
     if (message.type === 'START_MEETING_CAPTURE') {
         startMeetingCapture(message).catch(err => {
@@ -312,23 +414,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'STOP_MEETING_CAPTURE') {
         stopMeetingCapture();
         sendResponse({ status: 'stopped' });
-        return true;
-    }
-
-
-    if (message.type === 'WHISPER_INIT') {
-        initializeWhisper(message).catch(err => {
-            console.error('[Offscreen] Error in WHISPER_INIT:', err);
-        });
-        sendResponse({ status: 'initializing' });
-        return true;
-    }
-
-    if (message.type === 'WHISPER_PROCESS_AUDIO') {
-        processAudioWithWhisper(message.audioData).catch(err => {
-            console.error('[Offscreen] Error in WHISPER_PROCESS_AUDIO:', err);
-        });
-        sendResponse({ status: 'processing' });
         return true;
     }
 

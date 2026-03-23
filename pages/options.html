@@ -23,17 +23,9 @@
 
         
         <section class="settings-section">
-            <h2>Recognition Engine</h2>
+            <h2>Language</h2>
             <div class="setting-group">
-                <label for="defaultEngine">Default Engine</label>
-                <select id="defaultEngine">
-                    <option value="web-speech">Standard</option>
-                    <option value="whisper">Enhanced AI (Pro)</option>
-                </select>
-            </div>
-
-            <div class="setting-group">
-                <label for="language">Language</label>
+                <label for="language">Recognition Language</label>
                 <select id="language">
                     <option value="en-US">English (US)</option>
                     <option value="en-GB">English (UK)</option>
@@ -76,16 +68,6 @@
                     <option value="bg-BG">Bulgarian</option>
                     <option value="ca-ES">Catalan</option>
                 </select>
-            </div>
-
-            <div class="setting-group">
-                <label for="whisperModelSize">Enhanced AI Model Size</label>
-                <select id="whisperModelSize">
-                    <option value="tiny">Tiny (smallest, fastest, ~1GB RAM)</option>
-                    <option value="base">Base (balanced, ~2GB RAM)</option>
-                    <option value="small">Small (best quality, ~4GB RAM)</option>
-                </select>
-                <p class="setting-hint">Larger models provide better accuracy but require more system memory</p>
             </div>
         </section>
 
@@ -325,6 +307,7 @@
     </div>
 
     <script src="../js/license.js"></script>
+    <script src="../js/defaults.js"></script>
     <script src="../js/theme.js"></script>
     <script src="../js/options.js"></script>
 </body>

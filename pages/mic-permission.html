@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SpeakScribe - Grant Microphone Access</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      text-align: center;
+      max-width: 420px;
+      padding: 40px;
+      background: #161b22;
+      border-radius: 16px;
+      border: 1px solid #30363d;
+    }
+    .icon { font-size: 48px; margin-bottom: 16px; }
+    h1 { font-size: 20px; margin-bottom: 8px; color: #00d2ff; }
+    p { font-size: 14px; color: #8b949e; margin-bottom: 24px; line-height: 1.5; }
+    .btn {
+      background: linear-gradient(135deg, #00d2ff, #3a7bd5);
+      color: #fff;
+      border: none;
+      padding: 12px 32px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status {
+      margin-top: 16px;
+      font-size: 13px;
+      color: #8b949e;
+      min-height: 20px;
+    }
+    .status.success { color: #3fb950; }
+    .status.error { color: #f85149; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">&#127908;</div>
+    <h1>Microphone Access Required</h1>
+    <p>SpeakScribe's Enhanced transcription engine needs microphone access. Click the button below and allow access when Chrome prompts you.</p>
+    <button class="btn" id="grantBtn">Grant Microphone Access</button>
+    <div class="status" id="status"></div>
+  </div>
+  <script src="../js/mic-permission.js"></script>
+</body>
+</html>

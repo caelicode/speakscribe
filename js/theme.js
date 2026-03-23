@@ -6,6 +6,10 @@ const SpeakScribeTheme = (() => {
   const STORAGE_KEY = 'speakscribe_theme';
   const VALID_MODES = ['dark', 'light', 'system'];
 
+  // Fix #12: Track the media query listener so we can remove it to avoid leaks
+  let _mediaListener = null;
+  let _mediaQuery = null;
+
   /**
    * Read the saved theme preference from chrome.storage.local.
    * Falls back to 'dark' if nothing is stored.
@@ -55,6 +59,29 @@ const SpeakScribeTheme = (() => {
   }
 
   /**
+   * Remove any existing system theme listener to prevent leaks.
+   */
+  function _removeMediaListener() {
+    if (_mediaListener && _mediaQuery) {
+      _mediaQuery.removeEventListener('change', _mediaListener);
+      _mediaListener = null;
+      _mediaQuery = null;
+    }
+  }
+
+  /**
+   * Add a system theme change listener (only one at a time).
+   */
+  function _addMediaListener() {
+    _removeMediaListener();
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      _mediaQuery = window.matchMedia('(prefers-color-scheme: light)');
+      _mediaListener = () => applyTheme('system');
+      _mediaQuery.addEventListener('change', _mediaListener);
+    }
+  }
+
+  /**
    * Initialize: read stored preference, apply it, and listen for system changes.
    * Returns the stored mode ('dark' | 'light' | 'system').
    */
@@ -63,10 +90,8 @@ const SpeakScribeTheme = (() => {
     applyTheme(mode);
 
     // If user chose 'system', watch for OS changes
-    if (mode === 'system' && typeof window !== 'undefined' && window.matchMedia) {
-      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
-        applyTheme('system');
-      });
+    if (mode === 'system') {
+      _addMediaListener();
     }
 
     return mode;
@@ -80,12 +105,11 @@ const SpeakScribeTheme = (() => {
     saveTheme(mode);
     applyTheme(mode);
 
-    // Re-register / remove system listener as needed
-    // (Lightweight: just apply on change regardless; the attribute controls the CSS)
-    if (mode === 'system' && typeof window !== 'undefined' && window.matchMedia) {
-      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
-        applyTheme('system');
-      });
+    // Manage system listener: add if 'system', remove otherwise
+    if (mode === 'system') {
+      _addMediaListener();
+    } else {
+      _removeMediaListener();
     }
   }
 
